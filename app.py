@@ -852,7 +852,7 @@ with abas[1]:
                 with st.expander(f"📊 {row['Ticker']} — Score {row['Score']}/100 — {row['Recomendação']}"):
                     g1,g2 = st.columns([3,1])
                     with g1:
-                        st.plotly_chart(plotar_grafico(row["_df"], row["Ticker"]), use_container_width=True)
+                        st.plotly_chart(plotar_grafico(row["_df"], row["Ticker"]), use_container_width=True, key=f"chart_sc_{row['Ticker']}")
                     with g2:
                         cor = "#00d4aa" if "COMPRA" in row["Recomendação"] else "#f43f5e"
                         st.markdown(f"<div style='background:{cor}15;border:1px solid {cor};border-radius:8px;padding:12px;'><b style='color:{cor};'>{row['Recomendação']}</b><br><span style='color:#64748b;'>Score: {row['Score']}/100</span></div>", unsafe_allow_html=True)
@@ -1169,7 +1169,7 @@ for aba_idx,(nome_aba,cats) in enumerate(cats_map.items()):
             with st.expander(f"{tk} | {preco_atual:.2f} | {var:+.1f}% | Score {score}/100 | {rec}"):
                 for a in alertas: st.warning(a)
                 g1,g2 = st.columns([3,1])
-                with g1: st.plotly_chart(plotar_grafico(df,tk), use_container_width=True)
+                with g1: st.plotly_chart(plotar_grafico(df,tk), use_container_width=True, key=f"chart_{tk}_{aba_idx}")
                 with g2:
                     st.markdown(f"<div style='background:{cor}15;border:1px solid {cor};border-radius:8px;padding:12px;'><b style='color:{cor};font-size:1.05rem;'>{rec}</b><br><span style='color:#64748b;'>Score: {score}/100</span></div>", unsafe_allow_html=True)
                     st.markdown(f"**RSI:** {df['RSI'].iloc[-1]:.1f}")
