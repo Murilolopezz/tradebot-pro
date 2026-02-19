@@ -21,8 +21,33 @@ GMAIL_USER    = os.getenv("GMAIL_USER", "")
 GMAIL_PASS    = os.getenv("GMAIL_PASS", "")
 NEWS_API_KEY  = os.getenv("NEWS_API_KEY", "")
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+APP_PASSWORD  = os.getenv("APP_PASSWORD", "tradebot2024")
 
 st.set_page_config(page_title="TradeBot Pro", page_icon="📈", layout="wide")
+
+# ─── Login Gate ───────────────────────────────────────────────────────────────
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    st.markdown("""<style>
+    html,body,.stApp{background:#080c10!important;}
+    .login-box{max-width:380px;margin:80px auto;background:#0e1318;border:1px solid #1a2332;border-radius:16px;padding:40px;text-align:center;}
+    .login-title{font-family:'Syne',sans-serif;font-size:1.9rem;font-weight:800;background:linear-gradient(135deg,#00d4aa,#0ea5e9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+    .login-sub{color:#64748b;font-family:Space Mono,monospace;font-size:0.75rem;letter-spacing:1px;margin-bottom:28px;}
+    </style>""", unsafe_allow_html=True)
+    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='login-title'>📈 TradeBot Pro</div>", unsafe_allow_html=True)
+    st.markdown("<div class='login-sub'>ACESSO RESTRITO · INSIRA A SENHA</div>", unsafe_allow_html=True)
+    senha_inp = st.text_input("", type="password", placeholder="Digite a senha de acesso", label_visibility="collapsed")
+    if st.button("🔓 Entrar", use_container_width=True):
+        if senha_inp == APP_PASSWORD:
+            st.session_state.autenticado = True
+            st.rerun()
+        else:
+            st.error("❌ Senha incorreta.")
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
 
 def inject_css():
     st.markdown("""<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">""", unsafe_allow_html=True)
