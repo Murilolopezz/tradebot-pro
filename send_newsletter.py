@@ -121,21 +121,17 @@ def buscar_ativo(ticker):
     except:
         return None
 
-def buscar_noticias(query, n=5, lang="en", dias=7):
+def buscar_noticias(query, n=5, lang="pt", dias=7):
     """Busca notícias usando params dict (URL encoding correto)."""
     if not NEWS_API_KEY: return []
     from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
     try:
-        params = {
-            "q": query,
-            "sortBy": "publishedAt",
-            "pageSize": min(n, 20),
-            "from": from_date,
-            "apiKey": NEWS_API_KEY,
-        }
-        if lang:
-            params["language"] = lang
+        params = {"q": query, "sortBy": "publishedAt", "pageSize": min(n, 20),
+                  "from": from_date, "apiKey": NEWS_API_KEY, "language": lang}
         arts = requests.get("https://newsapi.org/v2/everything", params=params, timeout=10).json().get("articles", [])
+        if not arts and lang == "pt":
+            params["language"] = "en"
+            arts = requests.get("https://newsapi.org/v2/everything", params=params, timeout=10).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except:
         return []
@@ -214,9 +210,9 @@ def gerar_corpo_newsletter():
 
     # Notícias recentes (últimos 3 dias)
     print("📰 Buscando notícias recentes...")
-    nots_br     = buscar_noticias("Brazil Ibovespa B3 stock market economy Bovespa", n=5, lang="en", dias=7)
-    nots_us     = buscar_noticias("US stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=7)
-    nots_global = buscar_noticias("global economy geopolitics oil trade war", n=4, lang="en", dias=7)
+    nots_br     = buscar_noticias("bolsa B3 Ibovespa Brasil mercado financeiro", n=5, lang="pt", dias=7)
+    nots_us     = buscar_noticias("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=7)
+    nots_global = buscar_noticias("global economy geopolitics oil trade", n=4, lang="en", dias=7)
     print(f"  → BR: {len(nots_br)} | US: {len(nots_us)} | Global: {len(nots_global)}")
 
     def bloco_noticias(noticias, titulo, cor):

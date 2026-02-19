@@ -453,46 +453,33 @@ Seja direto e objetivo. Máximo 280 palavras."""
     except Exception as e:
         return None, f"Erro IA: {str(e)}"
 
-def _newsapi_get(query, lang, n, dias):
-    """Chamada direta à NewsAPI com params dict (URL encoding correto)."""
+def _fetch_noticias_raw(query, n=8, lang="pt", dias=7):
+    """Busca notícias sem cache — filtra pelos últimos `dias` dias."""
     if not NEWS_API_KEY: return []
     from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
     try:
-        params = {
-            "q": query,
-            "sortBy": "publishedAt",
-            "pageSize": min(n, 20),
-            "from": from_date,
-            "apiKey": NEWS_API_KEY,
-        }
-        if lang:
-            params["language"] = lang
-        r = requests.get("https://newsapi.org/v2/everything", params=params, timeout=10)
-        arts = r.json().get("articles", [])
+        params = {"q": query, "sortBy": "publishedAt", "pageSize": min(n, 20),
+                  "from": from_date, "apiKey": NEWS_API_KEY, "language": lang}
+        arts = requests.get("https://newsapi.org/v2/everything", params=params, timeout=10).json().get("articles", [])
+        if not arts and lang == "pt":
+            params["language"] = "en"
+            arts = requests.get("https://newsapi.org/v2/everything", params=params, timeout=10).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
-    except:
-        return []
-
-def _fetch_noticias_raw(query, n=8, lang="en", dias=7):
-    """Sem cache — para uso direto (newsletter, análises)."""
-    arts = _newsapi_get(query, lang, n, dias)
-    if not arts and lang == "pt":
-        arts = _newsapi_get(query, "en", n, dias)
-    return arts
+    except: return []
 
 @st.cache_data(ttl=1800)
-def buscar_noticias(query, n=10, lang="en"):
-    return _newsapi_get(query, lang, n, dias=7)
+def buscar_noticias(query, n=8, lang="pt"):
+    return _fetch_noticias_raw(query, n=n, lang=lang, dias=7)
 
 @st.cache_data(ttl=1800)
-def buscar_noticias_multi(queries_tuple, n_cada=8):
-    """Múltiplas queries deduplicas, ordenadas por data."""
+def buscar_noticias_multi(queries_tuple, n_cada=5):
+    """Busca notícias de múltiplas queries e deduplica."""
     vistas = set(); resultado = []
     for q, lang in queries_tuple:
-        for a in _newsapi_get(q, lang, n_cada, dias=7):
-            t = a.get("title", "")
-            if t and t not in vistas:
-                vistas.add(t)
+        for a in buscar_noticias(q, n=n_cada, lang=lang):
+            titulo = a.get("title", "")
+            if titulo and titulo not in vistas:
+                vistas.add(titulo)
                 resultado.append(a)
     resultado.sort(key=lambda x: x.get("publishedAt", ""), reverse=True)
     return resultado
@@ -638,9 +625,9 @@ def gerar_newsletter():
             msg_dia = f"Mercados em foco nesta {turno}: análise técnica e fundamentos são seus melhores aliados. Boas operações!"
 
     # Notícias recentes (últimos 7 dias — sem cache)
-    nots_br     = _fetch_noticias_raw("Brazil Ibovespa B3 stock market economy Bovespa", n=5, lang="en", dias=7)
-    nots_us     = _fetch_noticias_raw("US stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=7)
-    nots_global = _fetch_noticias_raw("global economy geopolitics oil trade war", n=4, lang="en", dias=7)
+    nots_br     = _fetch_noticias_raw("bolsa B3 Ibovespa Brasil mercado financeiro", n=5, lang="pt", dias=7)
+    nots_us     = _fetch_noticias_raw("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=7)
+    nots_global = _fetch_noticias_raw("global economy geopolitics oil trade", n=4, lang="en", dias=7)
 
     def bloco_noticias(noticias, titulo, cor):
         html = f"<h3 style='color:{cor};margin-top:20px;'>{titulo}</h3>"
@@ -1096,14 +1083,14 @@ with abas[4]:
     st.markdown("### 🌍 Portal Mundial — Geopolítica & Economia Global")
 
     regioes = {
-        "🇧🇷 Brasil":     [("Brazil Ibovespa B3 stock market economy","en"), ("Brazil Bovespa Selic interest rate","en")],
-        "🇺🇸 EUA":        [("US economy Fed interest rates stock market","en"), ("Wall Street Nasdaq NYSE earnings","en")],
+        "🇧🇷 Brasil":     [("bolsa B3 Ibovespa economia Brasil mercado","pt"), ("Brazil Ibovespa B3 Bovespa stock exchange economy","en")],
+        "🇺🇸 EUA":        [("US economy Fed interest rates stock market","en"), ("Wall Street Nasdaq NYSE","en")],
         "🇪🇺 Europa":     [("Europe economy ECB inflation eurozone","en"), ("European markets DAX FTSE","en")],
         "🇨🇳 China":      [("China economy trade yuan market","en"), ("China GDP property market","en")],
         "🌍 Geopolítica": [("geopolitics war sanctions trade conflict","en"), ("BRICS NATO G7 global economy","en")],
-        "🛢️ Commodities": [("oil gold silver commodity prices inflation","en"), ("crude oil OPEC gold market","en")],
-        "₿ Cripto Global":[("bitcoin ethereum crypto blockchain regulation","en"), ("crypto market altcoin DeFi","en")],
-        "📰 Tudo":        [("global economy finance markets","en"), ("stock market bitcoin Fed economy","en"), ("Asia Pacific markets economy","en")],
+        "🛢️ Commodities": [("oil gold silver commodity prices","en"), ("petróleo ouro commodities mercado","pt")],
+        "₿ Cripto Global":[("bitcoin ethereum crypto regulation blockchain","en"), ("cripto bitcoin ethereum mercado","pt")],
+        "📰 Tudo":        [("global economy finance markets","en"), ("mercado financeiro mundial economia","pt"), ("Asia Pacific markets economy","en"), ("Middle East economy oil","en")],
     }
 
     regiao_sel = st.radio("Região:", list(regioes.keys()), horizontal=True)
@@ -1136,11 +1123,11 @@ with abas[4]:
 with abas[5]:
     st.markdown("### 🔥 Hot News — Mercado em Tempo Real")
     c1,c2,c3,c4 = st.columns(4)
-    q_hot = None; lang_hot = "en"
-    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="Brazil Ibovespa B3 stock market economy Bovespa"
-    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates Wall Street"
-    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain market"
-    if c4.button("📰 Tudo",     use_container_width=True): q_hot="stock market bitcoin economy Brazil Fed crypto"
+    q_hot = None; lang_hot = "pt"; q_hot_en = None
+    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa B3 Ibovespa economia Brasil"; lang_hot="pt"; q_hot_en="Brazil Ibovespa B3 Bovespa stock market economy"
+    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"; q_hot_en=None
+    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"; q_hot_en=None
+    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"; q_hot_en=None
 
     if q_hot:
         col_r, col_t = st.columns([1,5])
@@ -1151,6 +1138,9 @@ with abas[5]:
             st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
         with st.spinner("Buscando..."):
             nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
+            if not nots and lang_hot == "pt":
+                q_fb = q_hot_en if q_hot_en else q_hot
+                nots = buscar_noticias(q_fb, n=18, lang="en")
         if nots: render_noticias(nots, max_desc=250)
         elif not NEWS_API_KEY: st.info("Configure NEWS_API_KEY no .env.")
         else: st.warning("Nenhuma notícia encontrada no momento. Tente clicar em 🔄 Atualizar.")
