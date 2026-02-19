@@ -121,21 +121,21 @@ def buscar_ativo(ticker):
     except:
         return None
 
-def buscar_noticias(query, n=5, lang="pt", dias=3):
-    """Busca notícias dos últimos `dias` dias. lang='' busca sem filtro de idioma."""
+def buscar_noticias(query, n=5, lang="en", dias=7):
+    """Busca notícias usando params dict (URL encoding correto)."""
     if not NEWS_API_KEY: return []
     from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
     try:
-        lang_str = f"&language={lang}" if lang else ""
-        url = (f"https://newsapi.org/v2/everything?q={query}"
-               f"{lang_str}&sortBy=publishedAt&pageSize={n}"
-               f"&from={from_date}&apiKey={NEWS_API_KEY}")
-        arts = requests.get(url, timeout=10).json().get("articles", [])
-        if not arts and lang == "pt":
-            url2 = (f"https://newsapi.org/v2/everything?q={query}"
-                    f"&language=en&sortBy=publishedAt&pageSize={n}"
-                    f"&from={from_date}&apiKey={NEWS_API_KEY}")
-            arts = requests.get(url2, timeout=10).json().get("articles", [])
+        params = {
+            "q": query,
+            "sortBy": "publishedAt",
+            "pageSize": min(n, 20),
+            "from": from_date,
+            "apiKey": NEWS_API_KEY,
+        }
+        if lang:
+            params["language"] = lang
+        arts = requests.get("https://newsapi.org/v2/everything", params=params, timeout=10).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except:
         return []
@@ -214,9 +214,9 @@ def gerar_corpo_newsletter():
 
     # Notícias recentes (últimos 3 dias)
     print("📰 Buscando notícias recentes...")
-    nots_br     = buscar_noticias("Ibovespa B3 bolsa Brasil mercado financeiro", n=5, lang="", dias=3)
-    nots_us     = buscar_noticias("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=3)
-    nots_global = buscar_noticias("global economy geopolitics oil trade", n=4, lang="en", dias=3)
+    nots_br     = buscar_noticias("Brazil Ibovespa B3 stock market economy Bovespa", n=5, lang="en", dias=7)
+    nots_us     = buscar_noticias("US stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=7)
+    nots_global = buscar_noticias("global economy geopolitics oil trade war", n=4, lang="en", dias=7)
     print(f"  → BR: {len(nots_br)} | US: {len(nots_us)} | Global: {len(nots_global)}")
 
     def bloco_noticias(noticias, titulo, cor):
