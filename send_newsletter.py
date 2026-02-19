@@ -229,7 +229,7 @@ def gerar_corpo_newsletter():
         return html
 
     corpo = f"""<html><body style="background:#080c10;color:#e2e8f0;font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:auto;">
-<h1 style="color:#00d4aa;border-bottom:2px solid #1a2332;padding-bottom:12px;">📈 TradeBot Pro — Newsletter</h1>
+<h1 style="color:#00d4aa;border-bottom:2px solid #1a2332;padding-bottom:12px;">📈 MbInvest Bot Pro — Newsletter</h1>
 <p style="color:#64748b;font-family:monospace;">{datetime.now().strftime("%d/%m/%Y %H:%M")} — Análise automatizada via GitHub Actions</p>
 
 <div style="background:linear-gradient(135deg,#0a1628,#0d1f3c);border:1px solid #1a3a5c;border-radius:12px;padding:18px;margin:16px 0;">
@@ -249,7 +249,7 @@ def gerar_corpo_newsletter():
 {bloco_noticias(nots_global, "🌍 Geopolítica & Mundo", "#f59e0b")}
 
 <p style="color:#64748b;font-size:0.75rem;margin-top:24px;text-align:center;">
-TradeBot Pro · Este email é informativo e não constitui recomendação de investimento.<br>
+MbInvest Bot Pro · Este email é informativo e não constitui recomendação de investimento.<br>
 Para cancelar sua inscrição, entre em contato com o administrador.
 </p>
 </body></html>"""
@@ -258,7 +258,7 @@ Para cancelar sua inscrição, entre em contato com o administrador.
 # ─── Execução principal ───────────────────────────────────────────────────────
 def main():
     print(f"\n{'='*60}")
-    print(f"📧 TradeBot Pro — Newsletter  |  {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    print(f"📧 MbInvest Bot Pro — Newsletter  |  {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     print(f"{'='*60}")
 
     if not GMAIL_USER or not GMAIL_PASS:
@@ -276,7 +276,7 @@ def main():
     print(f"👥 Destinatários: {len(destinatarios)}")
 
     corpo = gerar_corpo_newsletter()
-    assunto = f"📈 TradeBot Pro — {datetime.now().strftime('%d/%m')} · Oportunidades do Dia"
+    assunto = f"📈 MbInvest Bot Pro — {datetime.now().strftime('%d/%m')} · Oportunidades do Dia"
 
     print(f"\n📤 Enviando newsletter...")
     ok = erros = 0

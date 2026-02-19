@@ -27,7 +27,7 @@ APP_PASSWORD  = os.getenv("APP_PASSWORD", "tradebot2024")
 MANUTENCAO    = os.getenv("MANUTENCAO", "false").lower() == "true"
 ADMIN_PASS    = os.getenv("ADMIN_PASS", "admin2024")
 
-st.set_page_config(page_title="TradeBot Pro", page_icon="📈", layout="wide")
+st.set_page_config(page_title="MbInvest Bot Pro", page_icon="📊", layout="wide")
 
 CSS_BASE = """<style>
 html,body,.stApp{background:#080c10!important;}
@@ -62,7 +62,7 @@ if "autenticado" not in st.session_state:
 if not st.session_state.autenticado:
     st.markdown(CSS_BASE, unsafe_allow_html=True)
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-    st.markdown("<div class='login-title'>📈 TradeBot Pro</div>", unsafe_allow_html=True)
+    st.markdown("<div class='login-title'>📈 MbInvest Bot Pro</div>", unsafe_allow_html=True)
     st.markdown("<div class='login-sub'>ACESSO RESTRITO · INSIRA A SENHA</div>", unsafe_allow_html=True)
     senha_inp = st.text_input("", type="password", placeholder="Digite a senha de acesso", label_visibility="collapsed")
     if st.button("🔓 Entrar", use_container_width=True):
@@ -315,10 +315,14 @@ FUNDOS = [
 ]
 
 # ─── Session State ────────────────────────────────────────────────────────────
-if "alertas_preco"     not in st.session_state: st.session_state.alertas_preco = []
+if "alertas_preco"      not in st.session_state: st.session_state.alertas_preco = []
 if "alertas_disparados" not in st.session_state: st.session_state.alertas_disparados = []
-if "sched"             not in st.session_state: st.session_state.sched = False
-if "noticias_urgentes" not in st.session_state: st.session_state.noticias_urgentes = []
+if "sched"              not in st.session_state: st.session_state.sched = False
+if "noticias_urgentes"  not in st.session_state: st.session_state.noticias_urgentes = []
+if "screener_res"       not in st.session_state: st.session_state.screener_res = []
+# Resultados das abas de categoria (B3, EUA, Cripto, FIIs, ETFs)
+for _idx in range(5):
+    if f"cat_res_{_idx}" not in st.session_state: st.session_state[f"cat_res_{_idx}"] = []
 
 # ─── Indicadores ─────────────────────────────────────────────────────────────
 def calcular_indicadores(df):
@@ -610,7 +614,7 @@ def gerar_newsletter():
         return html
 
     corpo = f"""<html><body style="background:#080c10;color:#e2e8f0;font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:auto;">
-<h1 style="color:#00d4aa;border-bottom:2px solid #1a2332;padding-bottom:12px;">📈 TradeBot Pro — Newsletter</h1>
+<h1 style="color:#00d4aa;border-bottom:2px solid #1a2332;padding-bottom:12px;">📈 MbInvest Bot Pro — Newsletter</h1>
 <p style="color:#64748b;font-family:monospace;">{datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
 
 <div style="background:linear-gradient(135deg,#0a1628,#0d1f3c);border:1px solid #1a3a5c;border-radius:12px;padding:18px;margin:16px 0;">
@@ -629,9 +633,9 @@ def gerar_newsletter():
 {bloco_noticias(nots_us,"🇺🇸 Mercado Americano","#0ea5e9")}
 {bloco_noticias(nots_global,"🌍 Geopolítica & Mundo","#f59e0b")}
 
-<p style="color:#64748b;font-size:0.75rem;margin-top:24px;text-align:center;">TradeBot Pro · Este email é informativo e não constitui recomendação de investimento.</p>
+<p style="color:#64748b;font-size:0.75rem;margin-top:24px;text-align:center;">MbInvest Bot Pro · Este email é informativo e não constitui recomendação de investimento.</p>
 </body></html>"""
-    assunto = f"📈 TradeBot Pro — {datetime.now().strftime('%d/%m')} · Oportunidades do Dia"
+    assunto = f"📈 MbInvest Bot Pro — {datetime.now().strftime('%d/%m')} · Oportunidades do Dia"
     subs = carregar_subscribers()
     todos = list(set(([GMAIL_USER] if GMAIL_USER else []) + subs))
     ok = True
@@ -653,8 +657,20 @@ def verificar_alertas():
             if disparar:
                 alerta["ativo"] = False
                 st.session_state.alertas_disparados.append({**alerta,"preco_disparado":preco_atual,"hora":datetime.now().strftime("%d/%m %H:%M")})
-                enviar_email(f"🔔 Alerta: {alerta['ticker']}",
-                    f"<h2>Alerta disparado!</h2><p>{alerta['ticker']} atingiu {preco_atual:.2f}</p>")
+                sinal = "⬆️ subiu acima" if alerta["tipo"]=="acima" else "⬇️ caiu abaixo"
+                corpo_alerta = f"""<html><body style="background:#080c10;color:#e2e8f0;font-family:Arial,sans-serif;padding:24px;max-width:600px;margin:auto;">
+<h2 style="color:#f59e0b;">🔔 Alerta Disparado — MbInvest Bot Pro</h2>
+<div style="background:#0e1318;border:1px solid #f59e0b;border-left:4px solid #f59e0b;border-radius:10px;padding:18px;margin:16px 0;">
+<p style="font-size:1.1rem;"><b style="color:#0ea5e9;">{alerta['ticker']}</b> {sinal} de <b style="color:#f43f5e;">{alerta['valor']:.2f}</b></p>
+<p>Preço atual: <b style="color:#00d4aa;font-size:1.2rem;">{preco_atual:.2f}</b></p>
+<p style="color:#64748b;font-size:0.85rem;">Disparado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}</p>
+</div>
+<p style="color:#64748b;font-size:0.75rem;">MbInvest Bot Pro · Alerta automático de preço</p>
+</body></html>"""
+                # Envia para o email específico do alerta OU para o admin
+                dest = alerta.get("email", "") or GMAIL_USER
+                if dest:
+                    enviar_email(f"🔔 Alerta MbInvest: {alerta['ticker']} atingiu {preco_atual:.2f}", corpo_alerta, to=dest)
         except: pass
 
 def rodar_scheduler():
@@ -686,7 +702,7 @@ def render_noticias(lista, max_desc=220):
 
 # ─── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("<div style='font-family:Space Mono,monospace;font-size:0.7rem;color:#00d4aa;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;'>TradeBot Pro v3</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-family:Space Mono,monospace;font-size:0.7rem;color:#00d4aa;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;'>MbInvest Bot Pro v3</div>", unsafe_allow_html=True)
     if st.session_state.alertas_disparados:
         st.markdown(f"<div style='background:#f59e0b15;border:1px solid #f59e0b;border-radius:8px;padding:10px;margin-bottom:12px;'><b style='color:#f59e0b;'>🔔 {len(st.session_state.alertas_disparados)} alerta(s) disparado(s)!</b></div>", unsafe_allow_html=True)
         for ad in st.session_state.alertas_disparados[-3:]:
@@ -701,8 +717,8 @@ with st.sidebar:
         st.markdown(f"<div style='font-size:0.75rem;font-family:Space Mono,monospace;color:{cor};'>{nome_api}: {'✅ OK' if val else '❌ Não config.'}</div>", unsafe_allow_html=True)
 
 # ─── Header ───────────────────────────────────────────────────────────────────
-st.markdown("<div class='header-main'>📈 TradeBot Pro</div>", unsafe_allow_html=True)
-st.markdown("<div class='header-sub'>PLATAFORMA DE ANÁLISE DE MERCADO · POWERED BY CLAUDE AI · V3</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-main'>📈 MbInvest Bot Pro</div>", unsafe_allow_html=True)
+st.markdown("<div class='header-sub'>MB INVESTIMENTOS · PLATAFORMA DE ANÁLISE · POWERED BY CLAUDE AI</div>", unsafe_allow_html=True)
 st.markdown("<div style='margin-bottom:20px'></div>", unsafe_allow_html=True)
 
 abas = st.tabs(["🔍 Análise","📡 Screener","🔔 Alertas","📊 Índices","🌍 Mundo","🔥 Hot News","🇧🇷 B3","🇺🇸 EUA","₿ Cripto","🏢 FIIs","📊 ETFs","💼 Fundos","💰 Renda Fixa","📧 Newsletter"])
@@ -799,58 +815,68 @@ with abas[1]:
     with sc3: min_score = st.slider("Score mín.:",0,100,60)
     with sc4: usar_ia_sc = st.checkbox("🤖 IA", value=False, help="Análise IA nas melhores oportunidades (mais lento)")
 
-    if st.button("🚀 Iniciar Varredura", use_container_width=True):
+    btn_col, clr_col = st.columns([4,1])
+    with btn_col:
+        iniciar_varredura = st.button("🚀 Iniciar Varredura", use_container_width=True)
+    with clr_col:
+        if st.button("🗑️ Limpar", use_container_width=True, key="clr_screener"):
+            st.session_state.screener_res = []
+            st.rerun()
+
+    if iniciar_varredura:
         tks = list(dict.fromkeys([t for c in cats_sel for t in CATALOGO.get(c,[])]))
         res = []
         bar = st.progress(0)
+        status_txt = st.empty()
         for i,tk in enumerate(tks):
-            bar.progress((i+1)/len(tks), text=f"Analisando {tk}...")
+            bar.progress((i+1)/len(tks))
+            status_txt.markdown(f"<span style='color:#64748b;font-size:0.82rem;font-family:Space Mono,monospace;'>🔍 Analisando {tk} ({i+1}/{len(tks)})...</span>", unsafe_allow_html=True)
             df,info = buscar_ativo(tk, periodo_sc)
             if df is not None:
                 score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b = gerar_analise(df,tk)
                 if score>=min_score:
                     res.append({"Ticker":tk,"Preço":round(df["Close"].iloc[-1],2),"Var%":round(var,2),"Var1D%":round(var1d,2),"RSI":round(df["RSI"].iloc[-1],1),"Score":score,"Recomendação":rec,"Alertas":len(alertas),"_df":df,"_info":info,"_pros":pros,"_contras":contras,"_alvo_a":alvo_a,"_alvo_b":alvo_b})
-        bar.empty()
-        if res:
-            res_sorted = sorted(res, key=lambda x:x["Score"], reverse=True)
-            df_show = pd.DataFrame([{k:v for k,v in r.items() if not k.startswith("_")} for r in res_sorted])
-            st.success(f"✅ {len(df_show)} ativos com score ≥ {min_score}")
-            st.dataframe(df_show, use_container_width=True, hide_index=True)
-            compras = [r for r in res_sorted if "COMPRA" in r["Recomendação"]]
-            if compras:
-                st.markdown("### 🟢 Melhores Oportunidades")
-                for row in compras[:5]:
-                    with st.expander(f"📊 {row['Ticker']} — Score {row['Score']}/100 — {row['Recomendação']}"):
-                        g1,g2 = st.columns([3,1])
-                        with g1:
-                            st.plotly_chart(plotar_grafico(row["_df"], row["Ticker"]), use_container_width=True)
-                        with g2:
-                            cor = "#00d4aa" if "COMPRA" in row["Recomendação"] else "#f43f5e"
-                            st.markdown(f"<div style='background:{cor}15;border:1px solid {cor};border-radius:8px;padding:12px;'><b style='color:{cor};'>{row['Recomendação']}</b><br><span style='color:#64748b;'>Score: {row['Score']}/100</span></div>", unsafe_allow_html=True)
-                            st.markdown(f"**RSI:** {row['RSI']}")
-                            if row["_alvo_a"]: st.markdown(f"🎯 **Alvo:** ${row['_alvo_a']}")
-                            if row["_alvo_b"]: st.markdown(f"🛡️ **Stop:** ${row['_alvo_b']}")
-                            # Alerta via form
-                            with st.form(key=f"form_sc_{row['Ticker']}"):
-                                val_al = st.number_input("Alvo alerta:", value=round(row["Preço"]*1.05,2), step=0.01)
-                                if st.form_submit_button("🔔 Criar Alerta"):
-                                    st.session_state.alertas_preco.append({"ticker":row["Ticker"],"tipo":"acima","valor":val_al,"ativo":True,"criado":datetime.now().strftime("%d/%m %H:%M")})
-                                    st.success("✅")
-                            tp,tc = st.tabs(["✅","❌"])
-                            with tp:
-                                for p in row["_pros"]: st.write(p)
-                            with tc:
-                                for c_ in row["_contras"]: st.write(c_)
-                        # IA no Screener
-                        if usar_ia_sc and ANTHROPIC_KEY:
-                            st.markdown("---")
-                            st.markdown("#### 🤖 Análise IA")
-                            with st.spinner("Claude analisando..."):
-                                ai_txt, ai_err = analisar_com_claude(row["Ticker"], row["_df"], row["_info"], row["Score"], row["_pros"], row["_contras"], row["Recomendação"], row["Var%"], row["Var1D%"], row["_alvo_a"], row["_alvo_b"])
-                            if ai_err: st.error(ai_err)
-                            else: st.markdown(f"<div class='ai-card'><div class='ai-label'>⚡ Claude AI</div><div class='ai-text'>{ai_txt.replace(chr(10),'<br>')}</div></div>", unsafe_allow_html=True)
-        else:
-            st.warning("Nenhum ativo atingiu o score mínimo.")
+        bar.empty(); status_txt.empty()
+        st.session_state.screener_res = sorted(res, key=lambda x:x["Score"], reverse=True) if res else []
+        if not res: st.warning("Nenhum ativo atingiu o score mínimo.")
+
+    if st.session_state.screener_res:
+        res_sorted = st.session_state.screener_res
+        df_show = pd.DataFrame([{k:v for k,v in r.items() if not k.startswith("_")} for r in res_sorted])
+        st.success(f"✅ {len(df_show)} ativos com score ≥ {min_score} — clique nos expanders para ver detalhes")
+        st.dataframe(df_show, use_container_width=True, hide_index=True)
+        compras = [r for r in res_sorted if "COMPRA" in r["Recomendação"]]
+        if compras:
+            st.markdown("### 🟢 Melhores Oportunidades")
+            for row in compras[:5]:
+                with st.expander(f"📊 {row['Ticker']} — Score {row['Score']}/100 — {row['Recomendação']}"):
+                    g1,g2 = st.columns([3,1])
+                    with g1:
+                        st.plotly_chart(plotar_grafico(row["_df"], row["Ticker"]), use_container_width=True)
+                    with g2:
+                        cor = "#00d4aa" if "COMPRA" in row["Recomendação"] else "#f43f5e"
+                        st.markdown(f"<div style='background:{cor}15;border:1px solid {cor};border-radius:8px;padding:12px;'><b style='color:{cor};'>{row['Recomendação']}</b><br><span style='color:#64748b;'>Score: {row['Score']}/100</span></div>", unsafe_allow_html=True)
+                        st.markdown(f"**RSI:** {row['RSI']}")
+                        if row["_alvo_a"]: st.markdown(f"🎯 **Alvo:** ${row['_alvo_a']}")
+                        if row["_alvo_b"]: st.markdown(f"🛡️ **Stop:** ${row['_alvo_b']}")
+                        with st.form(key=f"form_sc_{row['Ticker']}"):
+                            val_al = st.number_input("Alvo alerta:", value=round(row["Preço"]*1.05,2), step=0.01)
+                            em_al  = st.text_input("Email notificação:", placeholder="seu@email.com")
+                            if st.form_submit_button("🔔 Criar Alerta"):
+                                st.session_state.alertas_preco.append({"ticker":row["Ticker"],"tipo":"acima","valor":val_al,"email":em_al.strip(),"ativo":True,"criado":datetime.now().strftime("%d/%m %H:%M")})
+                                st.success("✅ Alerta criado!")
+                        tp,tc = st.tabs(["✅","❌"])
+                        with tp:
+                            for p in row["_pros"]: st.write(p)
+                        with tc:
+                            for c_ in row["_contras"]: st.write(c_)
+                    if usar_ia_sc and ANTHROPIC_KEY:
+                        st.markdown("---")
+                        st.markdown("#### 🤖 Análise IA")
+                        with st.spinner("Claude analisando..."):
+                            ai_txt, ai_err = analisar_com_claude(row["Ticker"], row["_df"], row["_info"], row["Score"], row["_pros"], row["_contras"], row["Recomendação"], row["Var%"], row["Var1D%"], row["_alvo_a"], row["_alvo_b"])
+                        if ai_err: st.error(ai_err)
+                        else: st.markdown(f"<div class='ai-card'><div class='ai-label'>⚡ Claude AI</div><div class='ai-text'>{ai_txt.replace(chr(10),'<br>')}</div></div>", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # ABA 2 — ALERTAS
@@ -865,12 +891,38 @@ with abas[2]:
         with fa1: al_ticker = st.text_input("Ticker:", placeholder="Ex: PETR4.SA | AAPL | BTC-USD")
         with fa2: al_tipo = st.selectbox("Disparar quando:", ["acima","abaixo"])
         with fa3: al_valor = st.number_input("Preço alvo:", min_value=0.01, value=50.00, step=0.01)
+        fa4,fa5 = st.columns([3,1])
+        with fa4: al_email = st.text_input("E-mail para notificação:", placeholder="seu@email.com (deixe vazio para usar o email admin)")
+        with fa5:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            al_verificar = st.form_submit_button("🔍 Verificar preço atual", use_container_width=True)
         if st.form_submit_button("➕ Adicionar Alerta", use_container_width=True):
             if al_ticker.strip():
-                st.session_state.alertas_preco.append({"ticker":al_ticker.strip().upper(),"tipo":al_tipo,"valor":al_valor,"ativo":True,"criado":datetime.now().strftime("%d/%m %H:%M")})
-                st.success(f"✅ Alerta adicionado para {al_ticker.upper()}")
+                email_dest = al_email.strip().lower() if al_email.strip() else ""
+                st.session_state.alertas_preco.append({
+                    "ticker": al_ticker.strip().upper(),
+                    "tipo":   al_tipo,
+                    "valor":  al_valor,
+                    "email":  email_dest,
+                    "ativo":  True,
+                    "criado": datetime.now().strftime("%d/%m %H:%M")
+                })
+                dest_txt = f" · Email: {email_dest}" if email_dest else " · Email: admin"
+                st.success(f"✅ Alerta criado para {al_ticker.upper()}{dest_txt}")
             else:
                 st.error("Informe o ticker!")
+        if al_verificar and al_ticker.strip():
+            with st.spinner(f"Buscando preço de {al_ticker.upper()}..."):
+                try:
+                    tk_v = yf.Ticker(al_ticker.strip().upper())
+                    h_v  = tk_v.history(period="1d", interval="5m")
+                    if not h_v.empty:
+                        p_v = h_v["Close"].iloc[-1]
+                        st.info(f"💰 Preço atual de **{al_ticker.upper()}**: **{p_v:.2f}**")
+                    else:
+                        st.warning("Ativo não encontrado.")
+                except:
+                    st.error("Erro ao buscar preço.")
 
     st.markdown("---")
     ativos = [a for a in st.session_state.alertas_preco if a.get("ativo",True)]
@@ -878,12 +930,14 @@ with abas[2]:
         st.markdown(f"#### 🟢 Alertas Ativos ({len(ativos)})")
         for i, alerta in enumerate(st.session_state.alertas_preco):
             if not alerta.get("ativo",True): continue
-            c1,c2,c3,c4,c5 = st.columns([2,1,1,1,1])
+            c1,c2,c3,c4,c5,c6 = st.columns([2,1,1,2,1,1])
             c1.markdown(f"<span style='font-family:Space Mono,monospace;color:#0ea5e9;'>📊 {alerta['ticker']}</span>", unsafe_allow_html=True)
-            c2.markdown(f"<span style='color:#64748b;font-size:0.82rem;'>preço {alerta['tipo']}</span>", unsafe_allow_html=True)
+            c2.markdown(f"<span style='color:#64748b;font-size:0.82rem;'>{alerta['tipo']}</span>", unsafe_allow_html=True)
             c3.markdown(f"<span style='font-family:Space Mono,monospace;color:#f59e0b;'>{alerta['valor']:.2f}</span>", unsafe_allow_html=True)
-            c4.markdown(f"<span style='color:#64748b;font-size:0.75rem;'>{alerta['criado']}</span>", unsafe_allow_html=True)
-            if c5.button("🗑️", key=f"del_{i}"):
+            email_show = alerta.get('email','') or 'admin'
+            c4.markdown(f"<span style='color:#64748b;font-size:0.72rem;font-family:Space Mono,monospace;'>✉️ {email_show}</span>", unsafe_allow_html=True)
+            c5.markdown(f"<span style='color:#64748b;font-size:0.72rem;'>{alerta['criado']}</span>", unsafe_allow_html=True)
+            if c6.button("🗑️", key=f"del_{i}"):
                 st.session_state.alertas_preco[i]["ativo"] = False
                 st.rerun()
     else:
@@ -904,28 +958,25 @@ with abas[2]:
 # ═══════════════════════════════════════════════════════════════════
 with abas[3]:
     st.markdown("### 📊 Índices & Mercados Globais")
-    if st.button("🔄 Atualizar Índices", use_container_width=True):
-        st.rerun()
+    col_ref, col_esp = st.columns([1,4])
+    with col_ref:
+        if st.button("🔄 Atualizar", use_container_width=True):
+            st.rerun()
 
+    # ── Cards de índices ─────────────────────────────────────────────
     cols = st.columns(4)
     for i, (nome_idx, ticker_idx, regiao) in enumerate(INDICES):
         with cols[i%4]:
             try:
                 tk = yf.Ticker(ticker_idx)
-                hist = tk.history(period="2d")
+                hist = tk.history(period="5d")
                 if not hist.empty and len(hist)>=2:
-                    preco_at = hist["Close"].iloc[-1]
+                    preco_at  = hist["Close"].iloc[-1]
                     preco_ant = hist["Close"].iloc[-2]
-                    variacao = ((preco_at - preco_ant) / preco_ant) * 100
-                    cor_var = "indice-var-pos" if variacao >= 0 else "indice-var-neg"
-                    sinal = "▲" if variacao >= 0 else "▼"
-                    # Formatar valor
-                    if preco_at > 1000:
-                        val_fmt = f"{preco_at:,.0f}"
-                    elif preco_at > 10:
-                        val_fmt = f"{preco_at:,.2f}"
-                    else:
-                        val_fmt = f"{preco_at:,.4f}"
+                    variacao  = ((preco_at - preco_ant) / preco_ant) * 100
+                    cor_var   = "indice-var-pos" if variacao >= 0 else "indice-var-neg"
+                    sinal     = "▲" if variacao >= 0 else "▼"
+                    val_fmt   = f"{preco_at:,.0f}" if preco_at > 1000 else (f"{preco_at:,.2f}" if preco_at > 10 else f"{preco_at:,.4f}")
                     st.markdown(f"""<div class='indice-card' style='margin-bottom:12px;'>
 <div class='indice-nome'>{regiao} · {nome_idx}</div>
 <div class='indice-valor'>{val_fmt}</div>
@@ -935,13 +986,69 @@ with abas[3]:
                 st.markdown(f"<div class='indice-card' style='margin-bottom:12px;'><div class='indice-nome'>{nome_idx}</div><div style='color:#64748b;font-size:0.8rem;'>Indisponível</div></div>", unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("### 📈 Gráfico Comparativo")
-    idx_sel = st.selectbox("Selecionar índice:", [n for n,_,_ in INDICES])
-    ticker_idx_sel = next((t for n,t,_ in INDICES if n==idx_sel), "^BVSP")
-    periodo_idx = st.selectbox("Período:", ["1mo","3mo","6mo","1y"], key="p_idx")
-    df_idx, _ = buscar_ativo(ticker_idx_sel, periodo_idx)
-    if df_idx is not None:
-        st.plotly_chart(plotar_grafico(df_idx, idx_sel), use_container_width=True)
+
+    # ── Gráfico individual ───────────────────────────────────────────
+    tab_ind, tab_comp = st.tabs(["📈 Gráfico Individual", "📊 Comparar Índices"])
+
+    with tab_ind:
+        idx_sel = st.selectbox("Selecionar índice:", [n for n,_,_ in INDICES], key="idx_ind")
+        ticker_idx_sel = next((t for n,t,_ in INDICES if n==idx_sel), "^BVSP")
+        periodo_idx = st.selectbox("Período:", ["1mo","3mo","6mo","1y","2y"], key="p_idx")
+        df_idx, _ = buscar_ativo(ticker_idx_sel, periodo_idx)
+        if df_idx is not None:
+            st.plotly_chart(plotar_grafico(df_idx, idx_sel), use_container_width=True)
+        else:
+            st.warning("Dados indisponíveis para este índice no momento.")
+
+    with tab_comp:
+        st.markdown("#### 📊 Comparativo de Desempenho (base 100)")
+        st.markdown("<p style='color:#64748b;font-size:0.85rem;'>Todos os índices normalizados para 100 no início do período — compare o desempenho relativo.</p>", unsafe_allow_html=True)
+        nomes_idx = [n for n,_,_ in INDICES]
+        comp_sel = st.multiselect("Selecionar índices para comparar:", nomes_idx,
+            default=["Ibovespa","S&P 500","Bitcoin","Ouro","Dólar/BRL"])
+        periodo_comp = st.selectbox("Período:", ["1mo","3mo","6mo","1y","2y"], key="p_comp")
+
+        if comp_sel and st.button("📊 Comparar", use_container_width=True):
+            fig_comp = go.Figure()
+            cores_comp = ["#00d4aa","#0ea5e9","#f59e0b","#a78bfa","#f43f5e","#34d399","#fb923c","#60a5fa"]
+            dados_ok = 0
+            prog_comp = st.progress(0)
+            for ci, nome_c in enumerate(comp_sel):
+                prog_comp.progress((ci+1)/len(comp_sel))
+                ticker_c = next((t for n,t,_ in INDICES if n==nome_c), None)
+                if not ticker_c: continue
+                try:
+                    tk_c = yf.Ticker(ticker_c)
+                    h_c  = tk_c.history(period=periodo_comp)
+                    if h_c.empty or len(h_c) < 2: continue
+                    h_c.index = h_c.index.tz_localize(None) if h_c.index.tz else h_c.index
+                    datas_c = [str(d)[:10] for d in h_c.index]
+                    # Normaliza para base 100
+                    base    = h_c["Close"].iloc[0]
+                    norm    = (h_c["Close"] / base * 100).tolist()
+                    cor_c   = cores_comp[dados_ok % len(cores_comp)]
+                    fig_comp.add_trace(go.Scatter(
+                        x=datas_c, y=norm, name=nome_c,
+                        line=dict(color=cor_c, width=2), mode="lines"
+                    ))
+                    dados_ok += 1
+                except: pass
+            prog_comp.empty()
+            if dados_ok:
+                fig_comp.add_hline(y=100, line_dash="dot", line_color="#64748b", opacity=0.5)
+                fig_comp.update_layout(
+                    template="plotly_dark", height=500,
+                    paper_bgcolor="#080c10", plot_bgcolor="#080c10",
+                    legend=dict(orientation="h", x=0, y=1.08, font=dict(size=10, color="#e2e8f0"), bgcolor="rgba(0,0,0,0)"),
+                    margin=dict(l=60,r=20,t=80,b=40),
+                    font=dict(color="#e2e8f0"),
+                    yaxis=dict(gridcolor="#1a2332", ticksuffix=" pts", title="Desempenho (base 100)"),
+                    xaxis=dict(gridcolor="#1a2332")
+                )
+                st.plotly_chart(fig_comp, use_container_width=True)
+                st.markdown("<p style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>Base 100 = primeiro dia do período selecionado. Acima de 100 = valorização.</p>", unsafe_allow_html=True)
+            else:
+                st.warning("Não foi possível carregar dados para os índices selecionados.")
 
 # ═══════════════════════════════════════════════════════════════════
 # ABA 4 — MUNDO (PORTAL GEOPOLÍTICO)
@@ -1028,44 +1135,63 @@ for aba_idx,(nome_aba,cats) in enumerate(cats_map.items()):
         s_cat = st.selectbox("Setor:",["Todos"]+cats,key=f"s_{aba_idx}")
         tks_cat = CATALOGO[s_cat] if s_cat!="Todos" else all_tks
         usar_ia_cat = st.checkbox("🤖 IA nas análises", value=False, key=f"ia_cat_{aba_idx}")
-        if st.button(f"Carregar {nome_aba}", key=f"btn_{aba_idx}", use_container_width=True):
+
+        btn_c, clr_c = st.columns([4,1])
+        with btn_c:
+            carregar_cat = st.button(f"🔎 Carregar {nome_aba}", key=f"btn_{aba_idx}", use_container_width=True)
+        with clr_c:
+            if st.button("🗑️", key=f"clr_{aba_idx}", use_container_width=True):
+                st.session_state[f"cat_res_{aba_idx}"] = []
+                st.rerun()
+
+        if carregar_cat:
             res_cat = []
             bar2 = st.progress(0)
+            status2 = st.empty()
             for i,tk in enumerate(tks_cat):
                 bar2.progress((i+1)/len(tks_cat))
-                df,info = buscar_ativo(tk, p_cat)
-                if df is not None:
-                    score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b = gerar_analise(df,tk)
-                    res_cat.append((tk,df,info,score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b))
-            bar2.empty()
+                status2.markdown(f"<span style='color:#64748b;font-size:0.8rem;font-family:Space Mono,monospace;'>🔍 {tk} ({i+1}/{len(tks_cat)})</span>", unsafe_allow_html=True)
+                try:
+                    df,info = buscar_ativo(tk, p_cat)
+                    if df is not None:
+                        score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b = gerar_analise(df,tk)
+                        res_cat.append((tk,df,info,score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b))
+                except: pass
+            bar2.empty(); status2.empty()
             res_cat.sort(key=lambda x:x[3],reverse=True)
-            for tk,df,info,score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b in res_cat:
-                cor = "#00d4aa" if "COMPRA" in rec else ("#f59e0b" if "NEUTRO" in rec else "#f43f5e")
-                with st.expander(f"{tk} | ${df['Close'].iloc[-1]:.2f} | {var:+.1f}% | Score {score}/100 | {rec}"):
-                    for a in alertas: st.warning(a)
-                    g1,g2 = st.columns([3,1])
-                    with g1: st.plotly_chart(plotar_grafico(df,tk), use_container_width=True)
-                    with g2:
-                        st.markdown(f"<div style='background:{cor}15;border:1px solid {cor};border-radius:8px;padding:12px;'><b style='color:{cor};font-size:1.05rem;'>{rec}</b><br><span style='color:#64748b;'>Score: {score}/100</span></div>", unsafe_allow_html=True)
-                        st.markdown(f"**RSI:** {df['RSI'].iloc[-1]:.1f}")
-                        if alvo_a: st.markdown(f"🎯 **Alvo:** ${alvo_a}")
-                        if alvo_b: st.markdown(f"🛡️ **Stop:** ${alvo_b}")
-                        with st.form(key=f"form_{tk}_{aba_idx}"):
-                            val_f = st.number_input("Alerta acima de:", value=round(df['Close'].iloc[-1]*1.05,2), step=0.01)
-                            if st.form_submit_button("🔔 Criar Alerta"):
-                                st.session_state.alertas_preco.append({"ticker":tk,"tipo":"acima","valor":val_f,"ativo":True,"criado":datetime.now().strftime("%d/%m %H:%M")})
-                                st.success("✅")
-                        tp,tc = st.tabs(["✅","❌"])
-                        with tp:
-                            for p in pros: st.write(p)
-                        with tc:
-                            for c_ in contras: st.write(c_)
-                    if usar_ia_cat and ANTHROPIC_KEY:
-                        st.markdown("---")
-                        with st.spinner("Claude analisando..."):
-                            ai_txt, ai_err = analisar_com_claude(tk, df, info, score, pros, contras, rec, var, var1d, alvo_a, alvo_b)
-                        if not ai_err:
-                            st.markdown(f"<div class='ai-card'><div class='ai-label'>⚡ Claude AI</div><div class='ai-text'>{ai_txt.replace(chr(10),'<br>')}</div></div>", unsafe_allow_html=True)
+            st.session_state[f"cat_res_{aba_idx}"] = res_cat
+            if not res_cat:
+                st.warning("Nenhum dado disponível no momento. Tente novamente.")
+
+        for tk,df,info,score,pros,contras,alertas,rec,var,var1d,alvo_a,alvo_b in st.session_state[f"cat_res_{aba_idx}"]:
+            cor = "#00d4aa" if "COMPRA" in rec else ("#f59e0b" if "NEUTRO" in rec else "#f43f5e")
+            preco_atual = df['Close'].iloc[-1]
+            with st.expander(f"{tk} | {preco_atual:.2f} | {var:+.1f}% | Score {score}/100 | {rec}"):
+                for a in alertas: st.warning(a)
+                g1,g2 = st.columns([3,1])
+                with g1: st.plotly_chart(plotar_grafico(df,tk), use_container_width=True)
+                with g2:
+                    st.markdown(f"<div style='background:{cor}15;border:1px solid {cor};border-radius:8px;padding:12px;'><b style='color:{cor};font-size:1.05rem;'>{rec}</b><br><span style='color:#64748b;'>Score: {score}/100</span></div>", unsafe_allow_html=True)
+                    st.markdown(f"**RSI:** {df['RSI'].iloc[-1]:.1f}")
+                    if alvo_a: st.markdown(f"🎯 **Alvo:** {alvo_a:.2f}")
+                    if alvo_b: st.markdown(f"🛡️ **Stop:** {alvo_b:.2f}")
+                    with st.form(key=f"form_{tk}_{aba_idx}"):
+                        val_f  = st.number_input("Alerta acima de:", value=round(preco_atual*1.05,2), step=0.01)
+                        em_f   = st.text_input("Email:", placeholder="seu@email.com", key=f"em_{tk}_{aba_idx}")
+                        if st.form_submit_button("🔔 Criar Alerta"):
+                            st.session_state.alertas_preco.append({"ticker":tk,"tipo":"acima","valor":val_f,"email":em_f.strip(),"ativo":True,"criado":datetime.now().strftime("%d/%m %H:%M")})
+                            st.success("✅ Alerta criado!")
+                    tp,tc = st.tabs(["✅ Prós","❌ Contras"])
+                    with tp:
+                        for p in pros: st.write(p)
+                    with tc:
+                        for c_ in contras: st.write(c_)
+                if usar_ia_cat and ANTHROPIC_KEY:
+                    st.markdown("---")
+                    with st.spinner("Claude analisando..."):
+                        ai_txt, ai_err = analisar_com_claude(tk, df, info, score, pros, contras, rec, var, var1d, alvo_a, alvo_b)
+                    if not ai_err:
+                        st.markdown(f"<div class='ai-card'><div class='ai-label'>⚡ Claude AI</div><div class='ai-text'>{ai_txt.replace(chr(10),'<br>')}</div></div>", unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # ABA 11 — FUNDOS DE INVESTIMENTO
@@ -1134,7 +1260,7 @@ with abas[12]:
 # ABA 13 — NEWSLETTER
 # ═══════════════════════════════════════════════════════════════════
 with abas[13]:
-    st.markdown("### 📧 Newsletter TradeBot Pro")
+    st.markdown("### 📧 Newsletter MbInvest Bot Pro")
 
     # ── Inscrição (visível para todos) ────────────────────────────
     st.markdown("#### ✉️ Receba a newsletter no seu e-mail")
@@ -1158,12 +1284,12 @@ with abas[13]:
                     subs.append(novo_email)
                     salvar_subscribers(subs)
                     corpo_boas_vindas = f"""<html><body style="background:#080c10;color:#e2e8f0;font-family:Arial,sans-serif;padding:24px;max-width:600px;margin:auto;">
-<h2 style="color:#00d4aa;">📈 Bem-vindo ao TradeBot Pro!</h2>
+<h2 style="color:#00d4aa;">📈 Bem-vindo ao MbInvest Bot Pro!</h2>
 <p>Seu e-mail <b>{novo_email}</b> foi cadastrado com sucesso.</p>
 <p style="color:#64748b;">Você receberá análises de mercado todos os dias às 07h, 13h e 18h.</p>
 <p style="color:#64748b;font-size:0.8rem;margin-top:24px;">Para cancelar a inscrição, entre em contato com o administrador.</p>
 </body></html>"""
-                    enviar_email("✅ Inscrição confirmada — TradeBot Pro", corpo_boas_vindas, to=novo_email)
+                    enviar_email("✅ Inscrição confirmada — MbInvest Bot Pro", corpo_boas_vindas, to=novo_email)
                     st.success(f"✅ Inscrito! Você receberá um e-mail de confirmação em breve.")
 
     st.markdown("---")
