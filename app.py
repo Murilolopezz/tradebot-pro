@@ -19,13 +19,21 @@ import os
 import anthropic
 
 load_dotenv()
-GMAIL_USER    = os.getenv("GMAIL_USER", "")
-GMAIL_PASS    = os.getenv("GMAIL_PASS", "")
-NEWS_API_KEY  = os.getenv("NEWS_API_KEY", "")
-ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-APP_PASSWORD  = os.getenv("APP_PASSWORD", "tradebot2024")
-MANUTENCAO    = os.getenv("MANUTENCAO", "false").lower() == "true"
-ADMIN_PASS    = os.getenv("ADMIN_PASS", "admin2024")
+
+def _secret(key, default=""):
+    val = os.getenv(key, "")
+    if not val:
+        try: val = st.secrets.get(key, default)
+        except Exception: pass
+    return str(val) if val else default
+
+GMAIL_USER    = _secret("GMAIL_USER")
+GMAIL_PASS    = _secret("GMAIL_PASS")
+NEWS_API_KEY  = _secret("NEWS_API_KEY")
+ANTHROPIC_KEY = _secret("ANTHROPIC_API_KEY")
+APP_PASSWORD  = _secret("APP_PASSWORD", "tradebot2024")
+MANUTENCAO    = _secret("MANUTENCAO", "false").lower() == "true"
+ADMIN_PASS    = _secret("ADMIN_PASS", "admin2024")
 
 st.set_page_config(page_title="MbInvest Bot Pro", page_icon="📊", layout="wide")
 
