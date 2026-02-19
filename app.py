@@ -117,11 +117,79 @@ section[data-testid="stSidebar"] { background: var(--surface) !important; border
 .stTabs [data-baseweb="tab"] { color: var(--muted); font-weight: 600; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 0.82rem; padding: 6px 12px; white-space: nowrap !important; flex-shrink: 0 !important; }
 .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #00d4aa22, #0ea5e922) !important; color: var(--accent) !important; border: 1px solid var(--accent) !important; }
 
-.stTextInput input, .stSelectbox select { background: var(--surface) !important; border: 1px solid var(--border) !important; color: var(--text) !important; border-radius: 8px !important; font-family: 'Space Mono', monospace !important; }
-div[data-baseweb="select"] > div { background: var(--surface) !important; border-color: var(--border) !important; }
+/* ── Inputs ─────────────────────────────────────────────── */
+.stTextInput input, .stNumberInput input {
+    background: var(--surface) !important; border: 1px solid var(--border) !important;
+    color: var(--text) !important; border-radius: 8px !important;
+    font-family: 'Space Mono', monospace !important;
+}
+.stTextInput input:focus, .stTextInput input:active,
+.stNumberInput input:focus, .stNumberInput input:active {
+    background: var(--surface) !important; color: var(--text) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px rgba(0,212,170,0.2) !important; outline: none !important;
+}
+.stTextInput input::placeholder, .stNumberInput input::placeholder { color: var(--muted) !important; }
 
-.stButton > button { background: linear-gradient(135deg, var(--accent), var(--accent2)) !important; color: #000 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; font-family: 'Syne', sans-serif !important; transition: all 0.2s ease; }
-.stButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,170,0.3); }
+/* ── Selectbox ──────────────────────────────────────────── */
+div[data-baseweb="select"] > div { background: var(--surface) !important; border-color: var(--border) !important; color: var(--text) !important; }
+div[data-baseweb="select"] > div:hover { border-color: var(--accent) !important; }
+div[data-baseweb="select"] span { color: var(--text) !important; }
+[data-baseweb="popover"], [data-baseweb="menu"] {
+    background: var(--surface) !important; border: 1px solid var(--border) !important;
+    border-radius: 10px !important; box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+}
+[data-baseweb="option"] { background: var(--surface) !important; color: var(--text) !important; }
+[data-baseweb="option"]:hover { background: #1a2332 !important; color: var(--accent) !important; }
+[data-baseweb="option"][aria-selected="true"] { background: rgba(0,212,170,0.12) !important; color: var(--accent) !important; }
+li[role="option"] { background: var(--surface) !important; color: var(--text) !important; }
+li[role="option"]:hover { background: #1a2332 !important; }
+
+/* ── Botões ─────────────────────────────────────────────── */
+.stButton > button {
+    background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
+    color: #000 !important; border: none !important; border-radius: 8px !important;
+    font-weight: 700 !important; font-family: 'Syne', sans-serif !important; transition: all 0.2s ease;
+}
+.stButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,170,0.3); background: linear-gradient(135deg, var(--accent), var(--accent2)) !important; color: #000 !important; }
+.stButton > button:active, .stButton > button:focus { background: linear-gradient(135deg, var(--accent), var(--accent2)) !important; color: #000 !important; box-shadow: 0 0 0 3px rgba(0,212,170,0.35) !important; outline: none !important; }
+
+/* Botão form submit */
+.stFormSubmitButton > button { background: linear-gradient(135deg, var(--accent), var(--accent2)) !important; color: #000 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; }
+.stFormSubmitButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,170,0.3); background: linear-gradient(135deg, var(--accent), var(--accent2)) !important; color: #000 !important; }
+.stFormSubmitButton > button:active, .stFormSubmitButton > button:focus { background: linear-gradient(135deg, var(--accent), var(--accent2)) !important; color: #000 !important; outline: none !important; }
+
+/* ── Multiselect ────────────────────────────────────────── */
+[data-baseweb="tag"] { background: rgba(0,212,170,0.15) !important; border: 1px solid var(--accent) !important; color: var(--accent) !important; border-radius: 6px !important; }
+[data-baseweb="tag"] span { color: var(--accent) !important; }
+[data-baseweb="tag"] button { color: var(--accent) !important; }
+
+/* ── Radio / Checkbox ───────────────────────────────────── */
+.stRadio label, .stCheckbox label { color: var(--text) !important; }
+.stRadio [data-testid="stWidgetLabel"], .stCheckbox [data-testid="stWidgetLabel"] { color: var(--text) !important; }
+.stCheckbox input:checked ~ div, .stCheckbox input:checked + div { background-color: var(--accent) !important; border-color: var(--accent) !important; }
+
+/* ── Tabs (aba interna) ─────────────────────────────────── */
+.stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) { background: rgba(0,212,170,0.06) !important; color: var(--text) !important; }
+.stTabs [data-baseweb="tab-panel"] { background: transparent !important; }
+
+/* ── Expander ───────────────────────────────────────────── */
+[data-testid="stExpander"] { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 10px !important; overflow: hidden; }
+[data-testid="stExpander"] > details > summary { color: var(--text) !important; background: var(--surface) !important; }
+[data-testid="stExpander"] > details > summary:hover { background: rgba(0,212,170,0.05) !important; color: var(--text) !important; }
+[data-testid="stExpander"] > details[open] > summary { border-color: var(--accent) !important; }
+[data-testid="stExpander"] > details > div { background: var(--surface) !important; }
+
+/* ── Forms ──────────────────────────────────────────────── */
+[data-testid="stForm"] { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 12px !important; }
+
+/* ── Slider ─────────────────────────────────────────────── */
+[data-baseweb="slider"] [role="slider"] { background: var(--accent) !important; border: 2px solid var(--accent) !important; }
+[data-baseweb="slider"] div[data-testid*="thumb"] { background: var(--accent) !important; }
+
+/* ── Number input spinner ───────────────────────────────── */
+.stNumberInput button { background: var(--surface) !important; color: var(--text) !important; border-color: var(--border) !important; }
+.stNumberInput button:hover { background: #1a2332 !important; color: var(--accent) !important; }
 
 div[data-testid="metric-container"] { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: border-color 0.2s; }
 div[data-testid="metric-container"]:hover { border-color: var(--accent); }
@@ -373,6 +441,7 @@ Seja direto e objetivo. Máximo 280 palavras."""
     except Exception as e:
         return None, f"Erro IA: {str(e)}"
 
+@st.cache_data(ttl=1800)   # cache 30 min — atualiza automaticamente
 def buscar_noticias(query, n=8, lang="pt"):
     if not NEWS_API_KEY: return []
     try:
@@ -384,10 +453,11 @@ def buscar_noticias(query, n=8, lang="pt"):
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except: return []
 
-def buscar_noticias_multi(queries, n_cada=5):
+@st.cache_data(ttl=1800)   # cache 30 min — atualiza automaticamente
+def buscar_noticias_multi(queries_tuple, n_cada=5):
     """Busca notícias de múltiplas queries e deduplica"""
     vistas = set(); resultado = []
-    for q, lang in queries:
+    for q, lang in queries_tuple:
         arts = buscar_noticias(q, n=n_cada, lang=lang)
         for a in arts:
             titulo = a.get("title","")
@@ -892,9 +962,18 @@ with abas[4]:
 
     regiao_sel = st.radio("Região:", list(regioes.keys()), horizontal=True)
 
+    col_atualizar, col_info = st.columns([1,4])
+    with col_atualizar:
+        if st.button("🔄 Atualizar", key="btn_refresh_mundo"):
+            buscar_noticias_multi.clear()
+            buscar_noticias.clear()
+            st.rerun()
+    with col_info:
+        st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · última busca: {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
+
     with st.spinner("Buscando notícias do mundo..."):
         queries = regioes[regiao_sel]
-        noticias_mundo = buscar_noticias_multi(queries, n_cada=8)
+        noticias_mundo = buscar_noticias_multi(tuple(queries), n_cada=8)
 
     if noticias_mundo:
         st.markdown(f"**{len(noticias_mundo)} notícias encontradas**")
@@ -917,6 +996,12 @@ with abas[5]:
     if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"
 
     if q_hot:
+        col_r, col_t = st.columns([1,5])
+        with col_r:
+            if st.button("🔄 Atualizar", key="btn_refresh_hot"):
+                buscar_noticias.clear(); st.rerun()
+        with col_t:
+            st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
         with st.spinner("Buscando..."):
             nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
             if not nots and lang_hot=="pt": nots = buscar_noticias(q_hot, n=18, lang="en")
