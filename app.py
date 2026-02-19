@@ -445,17 +445,25 @@ Seja direto e objetivo. Máximo 280 palavras."""
     except Exception as e:
         return None, f"Erro IA: {str(e)}"
 
-@st.cache_data(ttl=1800)   # cache 30 min — atualiza automaticamente
-def buscar_noticias(query, n=8, lang="pt"):
+def _fetch_noticias_raw(query, n=8, lang="pt", dias=3):
+    """Busca notícias sem cache — filtra pelos últimos `dias` dias."""
     if not NEWS_API_KEY: return []
+    from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
     try:
-        r = requests.get(f"https://newsapi.org/v2/everything?q={query}&language={lang}&sortBy=publishedAt&pageSize={n}&apiKey={NEWS_API_KEY}", timeout=8)
+        url = (f"https://newsapi.org/v2/everything?q={query}&language={lang}"
+               f"&sortBy=publishedAt&pageSize={n}&from={from_date}&apiKey={NEWS_API_KEY}")
+        r = requests.get(url, timeout=8)
         arts = r.json().get("articles", [])
-        if not arts and lang=="pt":
-            r2 = requests.get(f"https://newsapi.org/v2/everything?q={query}&language=en&sortBy=publishedAt&pageSize={n}&apiKey={NEWS_API_KEY}", timeout=8)
-            arts = r2.json().get("articles", [])
+        if not arts and lang == "pt":
+            url2 = (f"https://newsapi.org/v2/everything?q={query}&language=en"
+                    f"&sortBy=publishedAt&pageSize={n}&from={from_date}&apiKey={NEWS_API_KEY}")
+            arts = requests.get(url2, timeout=8).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except: return []
+
+@st.cache_data(ttl=1800)   # cache 30 min para a interface
+def buscar_noticias(query, n=8, lang="pt"):
+    return _fetch_noticias_raw(query, n=n, lang=lang, dias=3)
 
 @st.cache_data(ttl=1800)   # cache 30 min — atualiza automaticamente
 def buscar_noticias_multi(queries_tuple, n_cada=5):
@@ -588,20 +596,33 @@ def gerar_newsletter():
 {"".join(f"<br><span style=\"color:#f59e0b;font-size:0.82rem;\">⚡ {a}</span>" for a in alertas)}
 </div>"""
 
-    # Mensagem do dia via Claude
-    msg_dia = ""
+    # Mensagem do dia via Claude — prompt variado por horário
+    import random
+    hora_atual = datetime.now().hour
+    turno = "manhã" if hora_atual < 12 else ("tarde" if hora_atual < 18 else "noite")
+    estilos = ["direto e analítico","reflexivo e filosófico","estratégico e objetivo","motivacional e energético","sóbrio e fundamentalista"]
+    estilo = random.choice(estilos)
+    msg_dia = "Disciplina e estudo são os maiores diferenciais de um investidor vencedor. Bons trades!"
     if ANTHROPIC_KEY:
         try:
             client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
-            r = client.messages.create(model="claude-opus-4-6", max_tokens=200,
-                messages=[{"role":"user","content":f"Escreva uma mensagem motivacional e inteligente de 2-3 frases para investidores para o dia {datetime.now().strftime('%d/%m/%Y')}. Mencione algo relevante sobre o mercado financeiro atual. Seja inspirador mas realista."}])
+            r = client.messages.create(model="claude-opus-4-6", max_tokens=220,
+                messages=[{"role":"user","content":
+                    f"Você é um analista financeiro experiente. Escreva UMA mensagem ÚNICA de 2-3 frases "
+                    f"para investidores nesta {turno} de {datetime.now().strftime('%A, %d/%m/%Y')}. "
+                    f"Estilo: {estilo}. "
+                    f"Obrigatório: mencione algo específico e real sobre mercados em {datetime.now().strftime('%B de %Y')} "
+                    f"(Selic, inflação, dólar, S&P, Fed, Ibovespa ou outro indicador atual). "
+                    f"NÃO use frases genéricas como 'o mercado recompensa'. Seja original e específico."
+                }])
             msg_dia = r.content[0].text
-        except: msg_dia = "O mercado recompensa quem estuda, planeja e mantém a disciplina. Bons trades hoje!"
+        except Exception as e:
+            msg_dia = f"Mercados em foco nesta {turno}: análise técnica e fundamentos são seus melhores aliados. Boas operações!"
 
-    # Notícias por região
-    nots_br = buscar_noticias("bolsa B3 Ibovespa Brasil mercado", n=4)
-    nots_us = buscar_noticias("stock market NYSE Nasdaq Fed", n=4, lang="en")
-    nots_global = buscar_noticias("global economy geopolitics trade war", n=3, lang="en")
+    # Notícias recentes (últimos 3 dias — sem cache)
+    nots_br     = _fetch_noticias_raw("bolsa B3 Ibovespa Brasil mercado financeiro", n=5, dias=3)
+    nots_us     = _fetch_noticias_raw("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=3)
+    nots_global = _fetch_noticias_raw("global economy geopolitics oil trade", n=4, lang="en", dias=3)
 
     def bloco_noticias(noticias, titulo, cor):
         html = f"<h3 style='color:{cor};margin-top:20px;'>{titulo}</h3>"

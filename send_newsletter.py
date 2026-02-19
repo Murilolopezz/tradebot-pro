@@ -12,7 +12,8 @@ import yfinance as yf
 import anthropic
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 
 # ─── Configurações ────────────────────────────────────────────────────────────
 GMAIL_USER     = os.getenv("GMAIL_USER", "")
@@ -120,24 +121,20 @@ def buscar_ativo(ticker):
     except:
         return None
 
-def buscar_noticias(query, n=4, lang="pt"):
+def buscar_noticias(query, n=5, lang="pt", dias=3):
+    """Busca notícias dos últimos `dias` dias para garantir frescor."""
     if not NEWS_API_KEY: return []
+    from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
     try:
-        r = requests.get(
-            f"https://newsapi.org/v2/everything?q={query}"
-            f"&language={lang}&sortBy=publishedAt&pageSize={n}"
-            f"&apiKey={NEWS_API_KEY}",
-            timeout=10
-        )
-        arts = r.json().get("articles", [])
+        url = (f"https://newsapi.org/v2/everything?q={query}"
+               f"&language={lang}&sortBy=publishedAt&pageSize={n}"
+               f"&from={from_date}&apiKey={NEWS_API_KEY}")
+        arts = requests.get(url, timeout=10).json().get("articles", [])
         if not arts and lang == "pt":
-            r2 = requests.get(
-                f"https://newsapi.org/v2/everything?q={query}"
-                f"&language=en&sortBy=publishedAt&pageSize={n}"
-                f"&apiKey={NEWS_API_KEY}",
-                timeout=10
-            )
-            arts = r2.json().get("articles", [])
+            url2 = (f"https://newsapi.org/v2/everything?q={query}"
+                    f"&language=en&sortBy=publishedAt&pageSize={n}"
+                    f"&from={from_date}&apiKey={NEWS_API_KEY}")
+            arts = requests.get(url2, timeout=10).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except:
         return []
@@ -187,18 +184,26 @@ def gerar_corpo_newsletter():
             + "</div>"
         )
 
-    # Mensagem do dia via Claude
+    # Mensagem do dia via Claude — variada por horário e estilo
     print("🤖 Gerando mensagem do dia com Claude...")
-    msg_dia = "O mercado recompensa quem estuda, planeja e mantém a disciplina. Bons trades hoje!"
+    hora_atual = datetime.now().hour
+    turno = "manhã" if hora_atual < 12 else ("tarde" if hora_atual < 18 else "noite")
+    estilos = ["direto e analítico","reflexivo e filosófico","estratégico e objetivo",
+               "motivacional e energético","sóbrio e fundamentalista"]
+    estilo = random.choice(estilos)
+    msg_dia = f"Mercados em foco nesta {turno}: disciplina e análise são seus melhores aliados. Boas operações!"
     if ANTHROPIC_KEY:
         try:
             client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
             r = client.messages.create(
-                model="claude-opus-4-6", max_tokens=200,
+                model="claude-opus-4-6", max_tokens=220,
                 messages=[{"role": "user", "content":
-                    f"Escreva uma mensagem motivacional e inteligente de 2-3 frases para "
-                    f"investidores para o dia {datetime.now().strftime('%d/%m/%Y')}. "
-                    f"Mencione algo relevante sobre o mercado financeiro atual. Seja inspirador mas realista."
+                    f"Você é um analista financeiro experiente. Escreva UMA mensagem ÚNICA de 2-3 frases "
+                    f"para investidores nesta {turno} de {datetime.now().strftime('%A, %d/%m/%Y')}. "
+                    f"Estilo: {estilo}. "
+                    f"Obrigatório: mencione algo específico e real sobre mercados em {datetime.now().strftime('%B de %Y')} "
+                    f"(Selic, inflação, dólar, S&P, Fed, Ibovespa ou outro indicador atual). "
+                    f"NÃO use frases genéricas. Seja original e específico."
                 }]
             )
             msg_dia = r.content[0].text
@@ -206,11 +211,12 @@ def gerar_corpo_newsletter():
         except Exception as e:
             print(f"  ✗ Claude indisponível: {e}")
 
-    # Notícias
-    print("📰 Buscando notícias...")
-    nots_br     = buscar_noticias("bolsa B3 Ibovespa Brasil mercado", n=4)
-    nots_us     = buscar_noticias("stock market NYSE Nasdaq Fed", n=4, lang="en")
-    nots_global = buscar_noticias("global economy geopolitics trade war", n=3, lang="en")
+    # Notícias recentes (últimos 3 dias)
+    print("📰 Buscando notícias recentes...")
+    nots_br     = buscar_noticias("bolsa B3 Ibovespa Brasil mercado financeiro", n=5, dias=3)
+    nots_us     = buscar_noticias("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=3)
+    nots_global = buscar_noticias("global economy geopolitics oil trade", n=4, lang="en", dias=3)
+    print(f"  → BR: {len(nots_br)} | US: {len(nots_us)} | Global: {len(nots_global)}")
 
     def bloco_noticias(noticias, titulo, cor):
         html = f"<h3 style='color:{cor};margin-top:20px;'>{titulo}</h3>"
