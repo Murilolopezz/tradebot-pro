@@ -1086,7 +1086,7 @@ with abas[4]:
     st.markdown("### 🌍 Portal Mundial — Geopolítica & Economia Global")
 
     regioes = {
-        "🇧🇷 Brasil": [("bolsa B3 Ibovespa economia Brasil mercado","pt"), ("Brazil economy finance","en")],
+        "🇧🇷 Brasil": [("bolsa B3 Ibovespa economia Brasil mercado","pt"), ("Brazil Ibovespa B3 Bovespa stock exchange economy","en")],
         "🇺🇸 EUA":    [("US economy Fed interest rates stock market","en"), ("Wall Street Nasdaq NYSE","en")],
         "🇪🇺 Europa": [("Europe economy ECB inflation eurozone","en"), ("European markets DAX FTSE","en")],
         "🇨🇳 China":  [("China economy trade yuan market","en"), ("China GDP property market","en")],
@@ -1125,11 +1125,11 @@ with abas[4]:
 with abas[5]:
     st.markdown("### 🔥 Hot News — Mercado em Tempo Real")
     c1,c2,c3,c4 = st.columns(4)
-    q_hot = None; lang_hot = "pt"
-    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa B3 Ibovespa economia Brasil"
-    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"
-    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"
-    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"
+    q_hot = None; lang_hot = "pt"; q_hot_en = None
+    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa B3 Ibovespa economia Brasil"; lang_hot="pt"; q_hot_en="Brazil Ibovespa B3 Bovespa stock market economy"
+    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"; q_hot_en=None
+    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"; q_hot_en=None
+    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"; q_hot_en=None
 
     if q_hot:
         col_r, col_t = st.columns([1,5])
@@ -1140,9 +1140,13 @@ with abas[5]:
             st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
         with st.spinner("Buscando..."):
             nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
-            if not nots and lang_hot=="pt": nots = buscar_noticias(q_hot, n=18, lang="en")
+            if not nots and lang_hot == "pt":
+                # fallback: busca em inglês com query específica para Brasil
+                q_fb = q_hot_en if q_hot_en else q_hot
+                nots = buscar_noticias(q_fb, n=18, lang="en")
         if nots: render_noticias(nots, max_desc=250)
-        else: st.info("Configure NEWS_API_KEY no .env.")
+        elif not NEWS_API_KEY: st.info("Configure NEWS_API_KEY no .env.")
+        else: st.warning("Nenhuma notícia encontrada no momento. Tente clicar em 🔄 Atualizar.")
     else:
         st.markdown("<div style='text-align:center;padding:60px;color:#64748b;'><h2 style='font-family:Space Mono,monospace;'>→ Escolha uma categoria acima</h2></div>", unsafe_allow_html=True)
 
