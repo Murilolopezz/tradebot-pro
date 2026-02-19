@@ -303,7 +303,7 @@ INDICES = [
 
 FUNDOS = [
     ("Butiá Excellence FIC", "Renda Fixa", "~13.5% a.a.", "Baixo", "AAA"),
-    ("BTG Pactual Tesouro Selic", "Renda Fixa", "~14.5% a.a.", "Baixo", "AAA"),
+    ("BTG Pactual Tesouro Selic", "Renda Fixa", "~15.0% a.a.", "Baixo", "AAA"),
     ("Verde AM", "Multimercado", "CDI+5%~8%", "Médio", "A+"),
     ("SPX Nimitz", "Multimercado", "CDI+6%~10%", "Médio-Alto", "A+"),
     ("Kinea Prev XP", "Previdência", "CDI+4%", "Médio", "AA"),
@@ -1251,7 +1251,7 @@ with abas[12]:
     st.markdown("### 💰 Renda Fixa — Radar e Simulador")
     df_rf = pd.DataFrame({
         "Produto":  ["Tesouro Selic 2029","Tesouro IPCA+2035","CDB 100% CDI","CDB 120% CDI","LCI 90% CDI","LCA 92% CDI","Debênture IPCA+7%","CRI IPCA+8%"],
-        "Rentab.":  ["~14.75%","IPCA+7.5%","~14.75%","~17.7%","~13.3%","~13.6%","IPCA+7%","IPCA+8%"],
+        "Rentab.":  ["~15.0%","IPCA+7.5%","~15.0%","~18.0%","~13.5%","~13.8%","IPCA+7%","IPCA+8%"],
         "IR":       ["Sim","Sim","Sim","Sim","Isento","Isento","Sim/Isento","Isento"],
         "Liquidez": ["Diária","Vencto","Vencto","Vencto","Vencto","Vencto","Vencto","Vencto"],
         "FGC":      ["Não","Não","Sim","Sim","Sim","Sim","Não","Não"],
@@ -1261,7 +1261,7 @@ with abas[12]:
 
     r1,r2,r3,r4 = st.columns(4)
     with r1: valor=st.number_input("Capital (R$):",value=10000,step=1000)
-    with r2: taxa=st.number_input("Taxa anual (%):",value=14.75,step=0.25)
+    with r2: taxa=st.number_input("Taxa anual (%):",value=15.0,step=0.25)
     with r3: meses=st.slider("Prazo (meses):",1,120,12)
     with r4: ir_op=st.selectbox("IR:",["Sim","Isento"])
     taxa_m=(1+taxa/100)**(1/12)-1
