@@ -453,6 +453,12 @@ Seja direto e objetivo. Máximo 280 palavras."""
     except Exception as e:
         return None, f"Erro IA: {str(e)}"
 
+DOMINIOS_BR = (
+    "infomoney.com.br,cnnbrasil.com.br,metropoles.com,"
+    "g1.globo.com,valor.globo.com,exame.com,moneytimes.com.br,"
+    "seudinheiro.com,br.investing.com,money.uol.com.br"
+)
+
 def _fetch_noticias_raw(query, n=8, lang="pt", dias=3):
     """Busca notícias sem cache — filtra pelos últimos `dias` dias."""
     if not NEWS_API_KEY: return []
@@ -468,6 +474,26 @@ def _fetch_noticias_raw(query, n=8, lang="pt", dias=3):
             arts = requests.get(url2, timeout=8).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except: return []
+
+def _fetch_noticias_br_raw(query, n=8, dias=3):
+    """Busca notícias em portais BR: InfoMoney, CNN Brasil, Metrópoles, G1, Valor, Exame..."""
+    if not NEWS_API_KEY: return []
+    from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
+    try:
+        url = (f"https://newsapi.org/v2/everything?q={query}"
+               f"&domains={DOMINIOS_BR}&sortBy=publishedAt&pageSize={n}"
+               f"&from={from_date}&apiKey={NEWS_API_KEY}")
+        arts = requests.get(url, timeout=8).json().get("articles", [])
+        if not arts:  # fallback: qualquer fonte em pt
+            url2 = (f"https://newsapi.org/v2/everything?q={query}&language=pt"
+                    f"&sortBy=publishedAt&pageSize={n}&from={from_date}&apiKey={NEWS_API_KEY}")
+            arts = requests.get(url2, timeout=8).json().get("articles", [])
+        return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
+    except: return []
+
+@st.cache_data(ttl=1800)
+def buscar_noticias_br(query, n=8):
+    return _fetch_noticias_br_raw(query, n=n, dias=3)
 
 @st.cache_data(ttl=1800)   # cache 30 min para a interface
 def buscar_noticias(query, n=8, lang="pt"):
@@ -628,7 +654,7 @@ def gerar_newsletter():
             msg_dia = f"Mercados em foco nesta {turno}: análise técnica e fundamentos são seus melhores aliados. Boas operações!"
 
     # Notícias recentes (últimos 3 dias — sem cache)
-    nots_br     = _fetch_noticias_raw("bolsa B3 Ibovespa Brasil mercado financeiro", n=5, dias=3)
+    nots_br     = _fetch_noticias_br_raw("bolsa Ibovespa B3 mercado financeiro economia", n=5, dias=3)
     nots_us     = _fetch_noticias_raw("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=3)
     nots_global = _fetch_noticias_raw("global economy geopolitics oil trade", n=4, lang="en", dias=3)
 
@@ -1103,13 +1129,19 @@ with abas[4]:
         if st.button("🔄 Atualizar", key="btn_refresh_mundo"):
             buscar_noticias_multi.clear()
             buscar_noticias.clear()
+            buscar_noticias_br.clear()
             st.rerun()
     with col_info:
         st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · última busca: {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
 
     with st.spinner("Buscando notícias do mundo..."):
-        queries = regioes[regiao_sel]
-        noticias_mundo = buscar_noticias_multi(tuple(queries), n_cada=8)
+        if regiao_sel == "🇧🇷 Brasil":
+            noticias_mundo = buscar_noticias_br(
+                "bolsa Ibovespa B3 mercado financeiro economia dólar Selic Brasil", n=16
+            )
+        else:
+            queries = regioes[regiao_sel]
+            noticias_mundo = buscar_noticias_multi(tuple(queries), n_cada=8)
 
     if noticias_mundo:
         st.markdown(f"**{len(noticias_mundo)} notícias encontradas**")
@@ -1125,25 +1157,24 @@ with abas[4]:
 with abas[5]:
     st.markdown("### 🔥 Hot News — Mercado em Tempo Real")
     c1,c2,c3,c4 = st.columns(4)
-    q_hot = None; lang_hot = "pt"; q_hot_en = None
-    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa B3 Ibovespa economia Brasil"; lang_hot="pt"; q_hot_en="Brazil Ibovespa B3 Bovespa stock market economy"
-    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"; q_hot_en=None
-    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"; q_hot_en=None
-    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"; q_hot_en=None
+    q_hot = None; lang_hot = "pt"; hot_br = False
+    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa Ibovespa B3 mercado financeiro economia dólar Selic"; hot_br=True
+    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"
+    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"
+    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"
 
     if q_hot:
         col_r, col_t = st.columns([1,5])
         with col_r:
             if st.button("🔄 Atualizar", key="btn_refresh_hot"):
-                buscar_noticias.clear(); st.rerun()
+                buscar_noticias.clear(); buscar_noticias_br.clear(); st.rerun()
         with col_t:
             st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
         with st.spinner("Buscando..."):
-            nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
-            if not nots and lang_hot == "pt":
-                # fallback: busca em inglês com query específica para Brasil
-                q_fb = q_hot_en if q_hot_en else q_hot
-                nots = buscar_noticias(q_fb, n=18, lang="en")
+            if hot_br:
+                nots = buscar_noticias_br(q_hot, n=18)
+            else:
+                nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
         if nots: render_noticias(nots, max_desc=250)
         elif not NEWS_API_KEY: st.info("Configure NEWS_API_KEY no .env.")
         else: st.warning("Nenhuma notícia encontrada no momento. Tente clicar em 🔄 Atualizar.")

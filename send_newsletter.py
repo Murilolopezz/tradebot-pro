@@ -24,6 +24,12 @@ ANTHROPIC_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
 # Ex: "fulano@gmail.com,ciclano@hotmail.com"
 SUBSCRIBERS_LIST = os.getenv("SUBSCRIBERS_LIST", "")
 
+DOMINIOS_BR = (
+    "infomoney.com.br,cnnbrasil.com.br,metropoles.com,"
+    "g1.globo.com,valor.globo.com,exame.com,moneytimes.com.br,"
+    "seudinheiro.com,br.investing.com,money.uol.com.br"
+)
+
 # ─── Ativos analisados na newsletter ─────────────────────────────────────────
 AMOSTRA = [
     "PETR4.SA", "VALE3.SA", "ITUB4.SA", "WEGE3.SA",
@@ -139,6 +145,24 @@ def buscar_noticias(query, n=5, lang="pt", dias=3):
     except:
         return []
 
+def buscar_noticias_br(query, n=5, dias=3):
+    """Busca notícias em portais BR: InfoMoney, CNN Brasil, Metrópoles, G1, Valor, Exame..."""
+    if not NEWS_API_KEY: return []
+    from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
+    try:
+        url = (f"https://newsapi.org/v2/everything?q={query}"
+               f"&domains={DOMINIOS_BR}&sortBy=publishedAt&pageSize={n}"
+               f"&from={from_date}&apiKey={NEWS_API_KEY}")
+        arts = requests.get(url, timeout=10).json().get("articles", [])
+        if not arts:
+            url2 = (f"https://newsapi.org/v2/everything?q={query}"
+                    f"&language=pt&sortBy=publishedAt&pageSize={n}"
+                    f"&from={from_date}&apiKey={NEWS_API_KEY}")
+            arts = requests.get(url2, timeout=10).json().get("articles", [])
+        return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
+    except:
+        return []
+
 def enviar_email(assunto, corpo, destinatario):
     if not GMAIL_USER or not GMAIL_PASS: return False
     try:
@@ -213,7 +237,7 @@ def gerar_corpo_newsletter():
 
     # Notícias recentes (últimos 3 dias)
     print("📰 Buscando notícias recentes...")
-    nots_br     = buscar_noticias("bolsa B3 Ibovespa Brasil mercado financeiro", n=5, dias=3)
+    nots_br     = buscar_noticias_br("bolsa Ibovespa B3 mercado financeiro economia dólar Selic", n=5, dias=3)
     nots_us     = buscar_noticias("stock market NYSE Nasdaq Fed interest rates", n=5, lang="en", dias=3)
     nots_global = buscar_noticias("global economy geopolitics oil trade", n=4, lang="en", dias=3)
     print(f"  → BR: {len(nots_br)} | US: {len(nots_us)} | Global: {len(nots_global)}")
