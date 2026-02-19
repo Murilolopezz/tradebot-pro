@@ -35,3 +35,6 @@ desktop.ini
 
 # Logs
 *.log
+
+# Dados de usuários (não commitar emails de inscritos)
+subscribers.json

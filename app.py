@@ -9,6 +9,8 @@ import smtplib
 import threading
 import schedule
 import time
+import json
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
@@ -457,15 +459,36 @@ def buscar_ativo(ticker, periodo):
         return calcular_indicadores(h), d.info
     except: return None, None
 
-def enviar_email(assunto, corpo):
+SUBSCRIBERS_FILE = "subscribers.json"
+
+def carregar_subscribers():
+    try:
+        if os.path.exists(SUBSCRIBERS_FILE):
+            with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except: pass
+    return []
+
+def salvar_subscribers(lista):
+    try:
+        with open(SUBSCRIBERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(lista, f, ensure_ascii=False)
+        return True
+    except: return False
+
+def email_valido(email):
+    return bool(re.match(r"^[\w\.-]+@[\w\.-]+\.\w{2,}$", email.strip()))
+
+def enviar_email(assunto, corpo, to=None):
     if not GMAIL_USER or not GMAIL_PASS: return False
+    destinatario = to or GMAIL_USER
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"]=assunto; msg["From"]=GMAIL_USER; msg["To"]=GMAIL_USER
+        msg["Subject"]=assunto; msg["From"]=GMAIL_USER; msg["To"]=destinatario
         msg.attach(MIMEText(corpo,"html"))
         with smtplib.SMTP_SSL("smtp.gmail.com",465) as s:
             s.login(GMAIL_USER,GMAIL_PASS)
-            s.sendmail(GMAIL_USER,GMAIL_USER,msg.as_string())
+            s.sendmail(GMAIL_USER,destinatario,msg.as_string())
         return True
     except: return False
 
@@ -538,7 +561,14 @@ def gerar_newsletter():
 
 <p style="color:#64748b;font-size:0.75rem;margin-top:24px;text-align:center;">TradeBot Pro · Este email é informativo e não constitui recomendação de investimento.</p>
 </body></html>"""
-    return enviar_email(f"📈 TradeBot Pro — {datetime.now().strftime('%d/%m')} · Oportunidades do Dia", corpo)
+    assunto = f"📈 TradeBot Pro — {datetime.now().strftime('%d/%m')} · Oportunidades do Dia"
+    subs = carregar_subscribers()
+    todos = list(set(([GMAIL_USER] if GMAIL_USER else []) + subs))
+    ok = True
+    for email in todos:
+        if not enviar_email(assunto, corpo, to=email):
+            ok = False
+    return ok
 
 def verificar_alertas():
     for alerta in st.session_state.alertas_preco:
@@ -1019,33 +1049,54 @@ with abas[12]:
 # ABA 13 — NEWSLETTER
 # ═══════════════════════════════════════════════════════════════════
 with abas[13]:
-    st.markdown("### 📧 Newsletter & Alertas Automáticos")
-    st.info(f"📬 Configurado para: **{GMAIL_USER or 'Configure GMAIL_USER no .env'}**")
+    st.markdown("### 📧 Newsletter TradeBot Pro")
+
+    # ── Inscrição (visível para todos) ────────────────────────────
+    st.markdown("#### ✉️ Receba a newsletter no seu e-mail")
+    st.markdown("<p style='color:#64748b;font-size:0.88rem;'>Análises diárias de mercado, oportunidades de compra e venda e notícias globais — direto no seu e-mail às <b>07h, 13h e 18h</b>.</p>", unsafe_allow_html=True)
+
+    with st.form("form_inscricao"):
+        col_e, col_b = st.columns([3,1])
+        with col_e:
+            novo_email = st.text_input("", placeholder="seu@email.com", label_visibility="collapsed")
+        with col_b:
+            inscrever = st.form_submit_button("📩 Inscrever", use_container_width=True)
+        if inscrever:
+            novo_email = novo_email.strip().lower()
+            if not email_valido(novo_email):
+                st.error("❌ E-mail inválido. Verifique o formato.")
+            else:
+                subs = carregar_subscribers()
+                if novo_email in subs:
+                    st.warning("⚠️ Este e-mail já está inscrito.")
+                else:
+                    subs.append(novo_email)
+                    salvar_subscribers(subs)
+                    corpo_boas_vindas = f"""<html><body style="background:#080c10;color:#e2e8f0;font-family:Arial,sans-serif;padding:24px;max-width:600px;margin:auto;">
+<h2 style="color:#00d4aa;">📈 Bem-vindo ao TradeBot Pro!</h2>
+<p>Seu e-mail <b>{novo_email}</b> foi cadastrado com sucesso.</p>
+<p style="color:#64748b;">Você receberá análises de mercado todos os dias às 07h, 13h e 18h.</p>
+<p style="color:#64748b;font-size:0.8rem;margin-top:24px;">Para cancelar a inscrição, entre em contato com o administrador.</p>
+</body></html>"""
+                    enviar_email("✅ Inscrição confirmada — TradeBot Pro", corpo_boas_vindas, to=novo_email)
+                    st.success(f"✅ Inscrito! Você receberá um e-mail de confirmação em breve.")
+
+    st.markdown("---")
+
+    # ── O que a newsletter inclui ─────────────────────────────────
     st.markdown("""
-A newsletter inclui:
+**A newsletter inclui:**
 - 🟢 **Oportunidades de Compra** identificadas pela IA
 - 🔴 **Sinais de Venda / Cautela**
 - 💡 **Mensagem do Dia** gerada pelo Claude
-- 🇧🇷 **Notícias do Mercado Brasileiro**
-- 🇺🇸 **Notícias do Mercado Americano**
-- 🌍 **Geopolítica & Mundo**
-- 🔗 Links clicáveis para todas as notícias
-
-Envio automático: **07:00 · 13:00 · 18:00**
+- 🇧🇷 Notícias do Mercado Brasileiro
+- 🇺🇸 Notícias do Mercado Americano
+- 🌍 Geopolítica & Mundo
 """)
-    n1,n2=st.columns(2)
-    with n1:
-        if st.button("📤 Enviar Newsletter Agora", use_container_width=True):
-            with st.spinner("Analisando mercado e montando newsletter..."):
-                ok=gerar_newsletter()
-            if ok: st.success(f"✅ Enviado para {GMAIL_USER}!")
-            else:  st.error("❌ Erro. Verifique GMAIL_USER e GMAIL_PASS no .env")
-    with n2:
-        if st.button("🧪 Testar Gmail", use_container_width=True):
-            ok=enviar_email("✅ Teste TradeBot","<h2 style='color:#00d4aa;'>Funcionando! 🚀</h2>")
-            if ok: st.success("✅ Gmail conectado!")
-            else:  st.error("❌ Falha — verifique as credenciais")
+
     st.markdown("---")
+
+    # ── Próximos envios ───────────────────────────────────────────
     st.markdown("#### ⏰ Próximos Envios")
     agora=datetime.now()
     for hora in ["07:00","13:00","18:00"]:
@@ -1054,3 +1105,51 @@ Envio automático: **07:00 · 13:00 · 18:00**
         if prox<agora: prox+=timedelta(days=1)
         diff=prox-agora; hr=int(diff.seconds//3600); mn=int((diff.seconds%3600)//60)
         st.markdown(f"<span style='font-family:Space Mono,monospace;color:#64748b;'>🕐 **{hora}** — em {hr}h {mn}min</span>", unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ── Painel Admin (senha protegida) ────────────────────────────
+    st.markdown("#### 🔐 Painel Administrativo")
+    if "admin_nl" not in st.session_state: st.session_state.admin_nl = False
+    if not st.session_state.admin_nl:
+        with st.form("form_admin_nl"):
+            adm_s = st.text_input("Senha admin:", type="password", label_visibility="collapsed", placeholder="Senha de administrador")
+            if st.form_submit_button("🔓 Acessar painel", use_container_width=True):
+                if adm_s == ADMIN_PASS:
+                    st.session_state.admin_nl = True
+                    st.rerun()
+                else:
+                    st.error("❌ Senha incorreta.")
+    else:
+        subs = carregar_subscribers()
+        st.markdown(f"<div style='background:#0ea5e915;border:1px solid #0ea5e9;border-radius:8px;padding:12px;margin-bottom:12px;'><b style='color:#0ea5e9;'>👥 {len(subs)} inscritos</b></div>", unsafe_allow_html=True)
+
+        na1, na2 = st.columns(2)
+        with na1:
+            if st.button("📤 Enviar Newsletter Agora", use_container_width=True):
+                with st.spinner("Analisando mercado e montando newsletter..."):
+                    ok = gerar_newsletter()
+                total = len(subs) + (1 if GMAIL_USER else 0)
+                if ok: st.success(f"✅ Enviado para {total} destinatário(s)!")
+                else:  st.error("❌ Erro no envio. Verifique as credenciais.")
+        with na2:
+            if st.button("🧪 Testar Conexão Gmail", use_container_width=True):
+                ok = enviar_email("✅ Teste TradeBot","<h2 style='color:#00d4aa;'>Funcionando! 🚀</h2>")
+                if ok: st.success("✅ Gmail conectado!")
+                else:  st.error("❌ Falha — verifique GMAIL_USER e GMAIL_PASS")
+
+        if subs:
+            st.markdown("##### 📋 Lista de Inscritos")
+            for i, email_s in enumerate(subs):
+                ca, cb = st.columns([4,1])
+                ca.markdown(f"<span style='font-family:Space Mono,monospace;color:#e2e8f0;font-size:0.88rem;'>{email_s}</span>", unsafe_allow_html=True)
+                if cb.button("🗑️", key=f"rem_{i}"):
+                    subs.pop(i)
+                    salvar_subscribers(subs)
+                    st.rerun()
+        else:
+            st.info("Nenhum inscrito ainda.")
+
+        if st.button("🔒 Sair do painel admin"):
+            st.session_state.admin_nl = False
+            st.rerun()
