@@ -453,47 +453,21 @@ Seja direto e objetivo. Máximo 280 palavras."""
     except Exception as e:
         return None, f"Erro IA: {str(e)}"
 
-DOMINIOS_BR = (
-    "infomoney.com.br,cnnbrasil.com.br,metropoles.com,"
-    "g1.globo.com,valor.globo.com,exame.com,moneytimes.com.br,"
-    "seudinheiro.com,br.investing.com,money.uol.com.br"
-)
-
 def _fetch_noticias_raw(query, n=8, lang="pt", dias=3):
     """Busca notícias sem cache — filtra pelos últimos `dias` dias."""
     if not NEWS_API_KEY: return []
     from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
     try:
-        url = (f"https://newsapi.org/v2/everything?q={query}&language={lang}"
+        lang_str = f"&language={lang}" if lang else ""
+        url = (f"https://newsapi.org/v2/everything?q={query}{lang_str}"
                f"&sortBy=publishedAt&pageSize={n}&from={from_date}&apiKey={NEWS_API_KEY}")
-        r = requests.get(url, timeout=8)
-        arts = r.json().get("articles", [])
+        arts = requests.get(url, timeout=8).json().get("articles", [])
         if not arts and lang == "pt":
             url2 = (f"https://newsapi.org/v2/everything?q={query}&language=en"
                     f"&sortBy=publishedAt&pageSize={n}&from={from_date}&apiKey={NEWS_API_KEY}")
             arts = requests.get(url2, timeout=8).json().get("articles", [])
         return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
     except: return []
-
-def _fetch_noticias_br_raw(query, n=8, dias=3):
-    """Busca notícias em portais BR: InfoMoney, CNN Brasil, Metrópoles, G1, Valor, Exame..."""
-    if not NEWS_API_KEY: return []
-    from_date = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
-    try:
-        url = (f"https://newsapi.org/v2/everything?q={query}"
-               f"&domains={DOMINIOS_BR}&sortBy=publishedAt&pageSize={n}"
-               f"&from={from_date}&apiKey={NEWS_API_KEY}")
-        arts = requests.get(url, timeout=8).json().get("articles", [])
-        if not arts:  # fallback: qualquer fonte em pt
-            url2 = (f"https://newsapi.org/v2/everything?q={query}&language=pt"
-                    f"&sortBy=publishedAt&pageSize={n}&from={from_date}&apiKey={NEWS_API_KEY}")
-            arts = requests.get(url2, timeout=8).json().get("articles", [])
-        return [a for a in arts if a.get("title") and a.get("title") != "[Removed]"]
-    except: return []
-
-@st.cache_data(ttl=1800)
-def buscar_noticias_br(query, n=8):
-    return _fetch_noticias_br_raw(query, n=n, dias=3)
 
 @st.cache_data(ttl=1800)   # cache 30 min para a interface
 def buscar_noticias(query, n=8, lang="pt"):
@@ -1112,7 +1086,7 @@ with abas[4]:
     st.markdown("### 🌍 Portal Mundial — Geopolítica & Economia Global")
 
     regioes = {
-        "🇧🇷 Brasil": [("bolsa B3 Ibovespa economia Brasil mercado","pt"), ("Brazil Ibovespa B3 Bovespa stock exchange economy","en")],
+        "🇧🇷 Brasil": [("Ibovespa B3 bolsa Brasil mercado financeiro",""), ("Selic dólar inflação economia Brasil","")],
         "🇺🇸 EUA":    [("US economy Fed interest rates stock market","en"), ("Wall Street Nasdaq NYSE","en")],
         "🇪🇺 Europa": [("Europe economy ECB inflation eurozone","en"), ("European markets DAX FTSE","en")],
         "🇨🇳 China":  [("China economy trade yuan market","en"), ("China GDP property market","en")],
@@ -1129,19 +1103,14 @@ with abas[4]:
         if st.button("🔄 Atualizar", key="btn_refresh_mundo"):
             buscar_noticias_multi.clear()
             buscar_noticias.clear()
-            buscar_noticias_br.clear()
+            buscar_noticias_multi.clear()
             st.rerun()
     with col_info:
         st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · última busca: {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
 
     with st.spinner("Buscando notícias do mundo..."):
-        if regiao_sel == "🇧🇷 Brasil":
-            noticias_mundo = buscar_noticias_br(
-                "bolsa Ibovespa B3 mercado financeiro economia dólar Selic Brasil", n=16
-            )
-        else:
-            queries = regioes[regiao_sel]
-            noticias_mundo = buscar_noticias_multi(tuple(queries), n_cada=8)
+        queries = regioes[regiao_sel]
+        noticias_mundo = buscar_noticias_multi(tuple(queries), n_cada=8)
 
     if noticias_mundo:
         st.markdown(f"**{len(noticias_mundo)} notícias encontradas**")
@@ -1157,24 +1126,21 @@ with abas[4]:
 with abas[5]:
     st.markdown("### 🔥 Hot News — Mercado em Tempo Real")
     c1,c2,c3,c4 = st.columns(4)
-    q_hot = None; lang_hot = "pt"; hot_br = False
-    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa Ibovespa B3 mercado financeiro economia dólar Selic"; hot_br=True
+    q_hot = None; lang_hot = "pt"
+    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="Ibovespa B3 bolsa Brasil mercado financeiro"; lang_hot=""
     if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"
-    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"
-    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"
+    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"; lang_hot="en"
+    if c4.button("📰 Tudo",     use_container_width=True): q_hot="stock market bitcoin economy Ibovespa B3 crypto"; lang_hot="en"
 
     if q_hot:
         col_r, col_t = st.columns([1,5])
         with col_r:
             if st.button("🔄 Atualizar", key="btn_refresh_hot"):
-                buscar_noticias.clear(); buscar_noticias_br.clear(); st.rerun()
+                buscar_noticias.clear(); buscar_noticias_multi.clear(); st.rerun()
         with col_t:
             st.markdown(f"<span style='color:#64748b;font-size:0.78rem;font-family:Space Mono,monospace;'>🕐 Cache 30 min · {datetime.now().strftime('%H:%M')}</span>", unsafe_allow_html=True)
         with st.spinner("Buscando..."):
-            if hot_br:
-                nots = buscar_noticias_br(q_hot, n=18)
-            else:
-                nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
+            nots = buscar_noticias(q_hot, n=18, lang=lang_hot)
         if nots: render_noticias(nots, max_desc=250)
         elif not NEWS_API_KEY: st.info("Configure NEWS_API_KEY no .env.")
         else: st.warning("Nenhuma notícia encontrada no momento. Tente clicar em 🔄 Atualizar.")
