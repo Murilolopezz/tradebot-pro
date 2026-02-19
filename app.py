@@ -331,6 +331,10 @@ if "screener_res"       not in st.session_state: st.session_state.screener_res =
 # Resultados das abas de categoria (B3, EUA, Cripto, FIIs, ETFs)
 for _idx in range(5):
     if f"cat_res_{_idx}" not in st.session_state: st.session_state[f"cat_res_{_idx}"] = []
+# Hot News — persiste categoria selecionada entre reruns
+if "hot_q"    not in st.session_state: st.session_state.hot_q    = None
+if "hot_lang" not in st.session_state: st.session_state.hot_lang = "pt"
+if "hot_q_en" not in st.session_state: st.session_state.hot_q_en = None
 
 # ─── Indicadores ─────────────────────────────────────────────────────────────
 def calcular_indicadores(df):
@@ -1123,11 +1127,18 @@ with abas[4]:
 with abas[5]:
     st.markdown("### 🔥 Hot News — Mercado em Tempo Real")
     c1,c2,c3,c4 = st.columns(4)
-    q_hot = None; lang_hot = "pt"; q_hot_en = None
-    if c1.button("🇧🇷 Brasil",  use_container_width=True): q_hot="bolsa B3 Ibovespa economia Brasil"; lang_hot="pt"; q_hot_en="Brazil Ibovespa B3 Bovespa stock market economy"
-    if c2.button("🌎 Global",   use_container_width=True): q_hot="stock market economy Fed interest rates"; lang_hot="en"; q_hot_en=None
-    if c3.button("₿ Cripto",    use_container_width=True): q_hot="bitcoin ethereum crypto blockchain"; q_hot_en=None
-    if c4.button("📰 Tudo",     use_container_width=True): q_hot="mercado financeiro bolsa bitcoin economia mundo"; q_hot_en=None
+    if c1.button("🇧🇷 Brasil",  use_container_width=True):
+        st.session_state.hot_q="bolsa B3 Ibovespa economia Brasil"; st.session_state.hot_lang="pt"; st.session_state.hot_q_en="Brazil Ibovespa B3 Bovespa stock market economy"
+    if c2.button("🌎 Global",   use_container_width=True):
+        st.session_state.hot_q="stock market economy Fed interest rates"; st.session_state.hot_lang="en"; st.session_state.hot_q_en=None
+    if c3.button("₿ Cripto",    use_container_width=True):
+        st.session_state.hot_q="bitcoin ethereum crypto blockchain"; st.session_state.hot_lang="en"; st.session_state.hot_q_en=None
+    if c4.button("📰 Tudo",     use_container_width=True):
+        st.session_state.hot_q="mercado financeiro bolsa bitcoin economia mundo"; st.session_state.hot_lang="pt"; st.session_state.hot_q_en=None
+
+    q_hot   = st.session_state.hot_q
+    lang_hot = st.session_state.hot_lang
+    q_hot_en = st.session_state.hot_q_en
 
     if q_hot:
         col_r, col_t = st.columns([1,5])
