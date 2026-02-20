@@ -9,7 +9,6 @@ import requests
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import anthropic
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
@@ -19,7 +18,6 @@ import random
 GMAIL_USER     = os.getenv("GMAIL_USER", "")
 GMAIL_PASS     = os.getenv("GMAIL_PASS", "")
 NEWS_API_KEY   = os.getenv("NEWS_API_KEY", "")
-ANTHROPIC_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
 # Lista de inscritos separada por vírgula no GitHub Secret:
 # Ex: "fulano@gmail.com,ciclano@hotmail.com"
 SUBSCRIBERS_LIST = os.getenv("SUBSCRIBERS_LIST", "")
@@ -181,32 +179,42 @@ def gerar_corpo_newsletter():
             + "</div>"
         )
 
-    # Mensagem do dia via Claude — variada por horário e estilo
-    print("🤖 Gerando mensagem do dia com Claude...")
-    hora_atual = datetime.now().hour
-    turno = "manhã" if hora_atual < 12 else ("tarde" if hora_atual < 18 else "noite")
-    estilos = ["direto e analítico","reflexivo e filosófico","estratégico e objetivo",
-               "motivacional e energético","sóbrio e fundamentalista"]
-    estilo = random.choice(estilos)
-    msg_dia = f"Mercados em foco nesta {turno}: disciplina e análise são seus melhores aliados. Boas operações!"
-    if ANTHROPIC_KEY:
-        try:
-            client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
-            r = client.messages.create(
-                model="claude-opus-4-6", max_tokens=220,
-                messages=[{"role": "user", "content":
-                    f"Você é um analista financeiro experiente. Escreva UMA mensagem ÚNICA de 2-3 frases "
-                    f"para investidores nesta {turno} de {datetime.now().strftime('%A, %d/%m/%Y')}. "
-                    f"Estilo: {estilo}. "
-                    f"Obrigatório: mencione algo específico e real sobre mercados em {datetime.now().strftime('%B de %Y')} "
-                    f"(Selic, inflação, dólar, S&P, Fed, Ibovespa ou outro indicador atual). "
-                    f"NÃO use frases genéricas. Seja original e específico."
-                }]
-            )
-            msg_dia = r.content[0].text
-            print("  → Mensagem gerada com sucesso")
-        except Exception as e:
-            print(f"  ✗ Claude indisponível: {e}")
+    # Citação do dia — sorteia entre grandes investidores e pensadores econômicos
+    print("💬 Sorteando citação do dia...")
+    QUOTES_INVESTIDORES = [
+        ("O preço é o que você paga. O valor é o que você recebe.", "Warren Buffett"),
+        ("Seja temeroso quando os outros são gananciosos, e ganancioso quando os outros são temerosos.", "Warren Buffett"),
+        ("Nunca invista num negócio que você não consiga entender.", "Warren Buffett"),
+        ("A bolsa é um dispositivo para transferir dinheiro do impaciente para o paciente.", "Warren Buffett"),
+        ("Regra nº 1: nunca perca dinheiro. Regra nº 2: nunca esqueça a regra nº 1.", "Warren Buffett"),
+        ("Nosso período favorito de retenção é para sempre.", "Warren Buffett"),
+        ("O risco vem de não saber o que você está fazendo.", "Warren Buffett"),
+        ("No curto prazo, o mercado é uma máquina de votos. No longo prazo, é uma balança.", "Benjamin Graham"),
+        ("Margem de segurança é o conceito central do investimento em valor.", "Benjamin Graham"),
+        ("O mercado não é um mecanismo de pagamento automático; ele recompensa quem pensa claramente.", "Benjamin Graham"),
+        ("Invista no que você conhece.", "Peter Lynch"),
+        ("Muito mais dinheiro foi perdido por investidores se preparando para correções do que nas próprias correções.", "Peter Lynch"),
+        ("Por trás de cada ação há uma empresa. Descubra o que ela está fazendo.", "Peter Lynch"),
+        ("Os mercados nunca estão errados — as opiniões frequentemente estão.", "Jesse Livermore"),
+        ("A paciência é uma virtude rara em Wall Street.", "Jesse Livermore"),
+        ("Inverta, sempre inverta.", "Charlie Munger"),
+        ("Mostre-me o incentivo e eu te mostrarei o resultado.", "Charlie Munger"),
+        ("Toda grande empresa foi pequena um dia.", "Philip Fisher"),
+        ("Concentre-se no que a empresa irá lucrar daqui a dez anos.", "Philip Fisher"),
+        ("Não tente prever o mercado. Posicione-se bem e deixe o tempo trabalhar a seu favor.", "Howard Marks"),
+        ("Os maiores erros de investimento vêm de erros psicológicos, não analíticos.", "Howard Marks"),
+        ("Os princípios corretos aplicados consistentemente ao longo do tempo criam resultados extraordinários.", "Ray Dalio"),
+        ("Dor + Reflexão = Progresso.", "Ray Dalio"),
+        ("Os preços são instrumentos de comunicação que coordenam o conhecimento disperso na sociedade.", "Friedrich Hayek"),
+        ("A liberdade econômica é condição necessária para a liberdade política.", "Friedrich Hayek"),
+        ("O poder tende a corromper, e o poder absoluto corrompe absolutamente.", "Lord Acton"),
+        ("A dificuldade não está nas novas ideias, mas em escapar das antigas.", "John Maynard Keynes"),
+        ("Os mercados podem permanecer irracionais por mais tempo do que você pode permanecer solvente.", "John Maynard Keynes"),
+        ("O tempo no mercado bate o timing do mercado.", "Ken Fisher"),
+        ("Mantenha os custos baixos, diversifique e seja paciente.", "John C. Bogle"),
+    ]
+    frase_dia, autor_dia = random.choice(QUOTES_INVESTIDORES)
+    print(f"  → \"{frase_dia[:60]}...\" — {autor_dia}")
 
     # Notícias recentes (últimos 3 dias)
     print("📰 Buscando notícias recentes...")
@@ -236,8 +244,9 @@ def gerar_corpo_newsletter():
 <p style="color:#64748b;font-family:monospace;">{datetime.now().strftime("%d/%m/%Y %H:%M")} — Análise automatizada via GitHub Actions</p>
 
 <div style="background:linear-gradient(135deg,#0a1628,#0d1f3c);border:1px solid #1a3a5c;border-radius:12px;padding:18px;margin:16px 0;">
-<div style="color:#00d4aa;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">💡 Mensagem do Dia</div>
-<p style="color:#e2e8f0;line-height:1.7;margin:0;">{msg_dia}</p>
+<div style="color:#00d4aa;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">💬 Citação do Dia</div>
+<p style="color:#e2e8f0;line-height:1.7;font-style:italic;font-size:1rem;margin:0 0 8px 0;">"{frase_dia}"</p>
+<p style="color:#0ea5e9;font-family:monospace;font-size:0.8rem;margin:0;">— {autor_dia}</p>
 </div>
 
 <h2 style="color:#00d4aa;">🟢 Oportunidades de Compra</h2>
